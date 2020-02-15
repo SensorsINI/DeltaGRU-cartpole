@@ -20,25 +20,22 @@ from modules.deltarnn import get_temporal_sparsity
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train a GRU network.')
     parser.add_argument('--seed', default=2, type=int, help='Initialize the random seed of the run (for reproducibility).')
-    parser.add_argument('--prev_look_back_len', default=5, type=int, help='Max timesteps per batch.')
-    parser.add_argument('--look_back_len', default=100, type=int, help='Max timesteps per batch.')
-    parser.add_argument('--pred_len', default=0, type=int, help='Static batch size.')
-    parser.add_argument('--batch_size', default=32, type=int, help='Static batch size.')
+    parser.add_argument('--look_back_len', default=100, type=int, help='The number of timesteps for RNN to look at')
+    parser.add_argument('--pred_len', default=1, type=int, help='The number of timesteps to predict in the future')
+    parser.add_argument('--batch_size', default=32, type=int, help='Batch size.')
     parser.add_argument('--num_epochs', default=5, type=int, help='Number of epochs to train for.')
-    parser.add_argument('--mode', default=0, type=int, help='Number of epochs to train for.')
-    parser.add_argument('--num_rnn_layers', default=2, type=int, help='number of classification layers')
-    parser.add_argument('--rnn_hid_size', default=128, type=int, help='Size of classification layer')
+    parser.add_argument('--mode', default=0, type=int, help='Mode 0 - Pretrain on GRU; Mode 1 - Retrain on GRU; Mode 2 - Retrain on DeltaGRU')
+    parser.add_argument('--num_rnn_layers', default=2, type=int, help='Number of RNN layers')
+    parser.add_argument('--rnn_hid_size', default=128, type=int, help='RNN Hidden layer size')
     parser.add_argument('--lr', default=5e-4, type=float, help='Learning rate')  # 5e-4
     parser.add_argument('--qa', default=0, type=int, help='Whether quantize the network activations')
     parser.add_argument('--qw', default=1, type=int, help='Whether quantize the network weights')
-    parser.add_argument('--aqi', default=8, type=int, help='Number of integer bits before decimal point')
-    parser.add_argument('--aqf', default=8, type=int, help='Number of integer bits before decimal point')
-    parser.add_argument('--wqi', default=1, type=int, help='Number of integer bits before decimal point')
-    parser.add_argument('--wqf', default=7, type=int, help='Number of integer bits before decimal point')
+    parser.add_argument('--aqi', default=8, type=int, help='Number of integer bits before decimal point for activation')
+    parser.add_argument('--aqf', default=8, type=int, help='Number of integer bits after decimal point for activation')
+    parser.add_argument('--wqi', default=1, type=int, help='Number of integer bits before decimal point for weight')
+    parser.add_argument('--wqf', default=7, type=int, help='Number of integer bits after decimal point for weight')
     parser.add_argument('--th_x', default=4/256, type=float, help='Delta threshold for inputs')
     parser.add_argument('--th_h', default=128/256, type=float, help='Delta threshold for hidden states')
-    parser.add_argument('--show_sp', default=0, type=int, help='Number of fraction bits after decimal point')
-    parser.add_argument('--normalize', default=1, type=int, help='Best model used in testing, either "per", or "vloss"')
     args = parser.parse_args()
 
     # Make folders
@@ -57,7 +54,6 @@ if __name__ == '__main__':
     torch.backends.cudnn.deterministic = True
 
     # Hyperparameters
-    prev_look_back_len = args.prev_look_back_len  # Length of history in timesteps used to train the network
     look_back_len = args.look_back_len            # Length of history in timesteps used to train the network
     pred_len = args.pred_len                      # Length of future in timesteps to predict
     lr = args.lr                                  # Learning rate
@@ -69,7 +65,6 @@ if __name__ == '__main__':
           '# Hyperparameters\n\r'
           '###################################################################################')
     print("mode =               ", mode)
-    print("prev_look_back_len = ", prev_look_back_len)
     print("look_back_len =      ", look_back_len)
     print("pred_len =           ", pred_len)
     print("lr =                 ", lr)
@@ -107,7 +102,7 @@ if __name__ == '__main__':
         str_net_arch = str(num_rnn_layers) + 'L-' + str(rnn_hid_size) + 'H-'
 
         filename = str_net_arch + str(rnn_type) + '-' + str(look_back_len) + 'T-' + str_target_variable
-        pretrain_model_path = './save/' + str_net_arch + 'GRU' + '-' + str(prev_look_back_len) + 'T-' + str_target_variable + '.pt'
+        pretrain_model_path = './save/' + str_net_arch + 'GRU' + '-' + str(look_back_len) + 'T-' + str_target_variable + '.pt'
         logpath = './log/' + filename + '.csv'
         savepath = './save/' + filename + '.pt'
     elif mode == 2:  # Retrain on DeltaGRU
