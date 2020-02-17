@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # DeltaGRU for AMPRO
 DeltaGRU training code of the ICRA 2020 paper on controlling AMPRO with EdgeDRNN
 
@@ -31,4 +30,3 @@ Run the script.
 ```
 python main.py
 ```
->>>>>>> cc5d665677e1e9fcd84ad48af6154ae57ec11d66
