@@ -13,20 +13,20 @@ import numpy as np
 import modules.models as models
 from modules.util import quantizeTensor, timeSince, quantize_rnn
 from modules.log import write_log, write_log_header
-from modules.ampro_data import load_ampro_data, Dataset
+from modules.data import load_data, Dataset
 from modules.deltarnn import get_temporal_sparsity
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train a GRU network.')
-    parser.add_argument('--seed', default=2, type=int, help='Initialize the random seed of the run (for reproducibility).')
-    parser.add_argument('--look_back_len', default=100, type=int, help='The number of timesteps for RNN to look at')
-    parser.add_argument('--pred_len', default=1, type=int, help='The number of timesteps to predict in the future')
+    parser.add_argument('--seed', default=1, type=int, help='Initialize the random seed of the run (for reproducibility).')
+    parser.add_argument('--look_back_len', default=4, type=int, help='The number of timesteps for RNN to look at')
+    parser.add_argument('--pred_len', default=100, type=int, help='The number of timesteps to predict in the future')
     parser.add_argument('--batch_size', default=32, type=int, help='Batch size.')
     parser.add_argument('--num_epochs', default=5, type=int, help='Number of epochs to train for.')
     parser.add_argument('--mode', default=0, type=int, help='Mode 0 - Pretrain on GRU; Mode 1 - Retrain on GRU; Mode 2 - Retrain on DeltaGRU')
-    parser.add_argument('--num_rnn_layers', default=2, type=int, help='Number of RNN layers')
-    parser.add_argument('--rnn_hid_size', default=128, type=int, help='RNN Hidden layer size')
+    parser.add_argument('--num_rnn_layers', default=1, type=int, help='Number of RNN layers')
+    parser.add_argument('--rnn_hid_size', default=64, type=int, help='RNN Hidden layer size')
     parser.add_argument('--lr', default=5e-4, type=float, help='Learning rate')  # 5e-4
     parser.add_argument('--qa', default=0, type=int, help='Whether quantize the network activations')
     parser.add_argument('--qw', default=1, type=int, help='Whether quantize the network weights')
@@ -113,23 +113,20 @@ if __name__ == '__main__':
         logpath = './log/' + filename + '_' + str(th_x) + '.csv'
         savepath = './save/' + filename + '_' + str(th_x) + '.pt'
 
-    print("Loading pretrained model: ", pretrain_model_path)
 
     ########################################################
     # Create Dataset
     ########################################################
-    _, ampro_data_1, labels_1 = load_ampro_data('./data/rachel_pd1.csv', look_back_len, pred_len)
-    _, ampro_data_2, labels_2 = load_ampro_data('./data/rachel_pd2.csv', look_back_len, pred_len)
-    _, ampro_data_3, labels_3 = load_ampro_data('./data/rachel_pd3.csv', look_back_len, pred_len)
-    ampro_dev_sample, ampro_data_4, labels_4 = load_ampro_data('./data/rachel_pd4.csv', look_back_len, pred_len)
-    _, ampro_data_5, labels_5 = load_ampro_data('./data/rachel_pd5.csv', look_back_len, pred_len)
+    _, data_1, labels_1 = load_data('data/cartpole-2020-02-21-10-12-40.csv',look_back_len, pred_len)
+    _, data_2, labels_2 = load_data('data/cartpole-2020-02-21-10-00-04.csv',look_back_len, pred_len)
+    _, data_3, labels_3 = load_data('data/cartpole-2020-02-21-10-00-24.csv',look_back_len, pred_len)
 
-    train_ampro_data = np.concatenate((ampro_data_1, ampro_data_2, ampro_data_3), axis=0)
-    train_ampro_labels = np.concatenate((labels_1, labels_2, labels_3), axis=0)
-    dev_ampro_data = ampro_data_4
-    dev_ampro_labels = labels_4
-    test_ampro_data = ampro_data_5
-    test_ampro_labels = labels_5
+    train_ampro_data = np.concatenate((data_1), axis=0)
+    train_ampro_labels = np.concatenate((labels_1), axis=0)
+    dev_ampro_data = data_2
+    dev_ampro_labels = labels_2
+    test_ampro_data = data_3
+    test_ampro_labels = labels_3
 
     # Convert data to PyTorch Tensors
     train_data = torch.Tensor(train_ampro_data).float()
@@ -225,6 +222,7 @@ if __name__ == '__main__':
                        cuda=1)
 
     if mode != 0:
+        print("Loading pretrained model: ", pretrain_model_path)
         pre_trained_model = torch.load(pretrain_model_path)
         pre_trained_model = list(pre_trained_model.items())
         new_state_dict = collections.OrderedDict()
