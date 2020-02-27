@@ -20,13 +20,13 @@ from modules.deltarnn import get_temporal_sparsity
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train a GRU network.')
     parser.add_argument('--seed', default=1, type=int, help='Initialize the random seed of the run (for reproducibility).')
-    parser.add_argument('--look_back_len', default=4, type=int, help='The number of timesteps for RNN to look at')
-    parser.add_argument('--pred_len', default=100, type=int, help='The number of timesteps to predict in the future')
+    parser.add_argument('--look_back_len', default=10, type=int, help='The number of timesteps for RNN to look at')
+    parser.add_argument('--pred_len', default=4, type=int, help='The number of timesteps to predict in the future')
     parser.add_argument('--batch_size', default=32, type=int, help='Batch size.')
-    parser.add_argument('--num_epochs', default=5, type=int, help='Number of epochs to train for.')
+    parser.add_argument('--num_epochs', default=30, type=int, help='Number of epochs to train for.')
     parser.add_argument('--mode', default=0, type=int, help='Mode 0 - Pretrain on GRU; Mode 1 - Retrain on GRU; Mode 2 - Retrain on DeltaGRU')
-    parser.add_argument('--num_rnn_layers', default=1, type=int, help='Number of RNN layers')
-    parser.add_argument('--rnn_hid_size', default=64, type=int, help='RNN Hidden layer size')
+    parser.add_argument('--num_rnn_layers', default=2, type=int, help='Number of RNN layers')
+    parser.add_argument('--rnn_hid_size', default=32, type=int, help='RNN Hidden layer size')
     parser.add_argument('--lr', default=5e-4, type=float, help='Learning rate')  # 5e-4
     parser.add_argument('--qa', default=0, type=int, help='Whether quantize the network activations')
     parser.add_argument('--qw', default=1, type=int, help='Whether quantize the network weights')
@@ -117,9 +117,9 @@ if __name__ == '__main__':
     ########################################################
     # Create Dataset
     ########################################################
-    _, data_1, labels_1 = load_data('data/cartpole-2020-02-21-10-12-40.csv',look_back_len, pred_len)
-    _, data_2, labels_2 = load_data('data/cartpole-2020-02-21-10-00-04.csv',look_back_len, pred_len)
-    _, data_3, labels_3 = load_data('data/cartpole-2020-02-21-10-00-24.csv',look_back_len, pred_len)
+    _, data_1, labels_1 = load_data('data/cartpole-2020-02-27-14-14-23 pololu control plus free plus cart response.csv',look_back_len, pred_len)
+    _, data_2, labels_2 = load_data('data/cartpole-2020-02-27-14-18-18 pololu PD control.csv',look_back_len, pred_len)
+    _, data_3, labels_3 = load_data('data/cartpole-2020-02-21-10-12-40.csv',look_back_len, pred_len)
 
     train_ampro_data = data_1 #np.concatenate((data_1), axis=0) # if only one file, then don't concatenate, it kills an axis
     train_ampro_labels = labels_1 #np.concatenate((labels_1), axis=0)

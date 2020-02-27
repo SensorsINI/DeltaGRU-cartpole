@@ -11,7 +11,7 @@ from pathlib import Path
 if __name__ == '__main__':
 
     root = tk.Tk()
-    root.tk.call('tk', 'scaling', 4.0)
+    root.tk.call('tk', 'scaling', 2.0) # doesn't help on hdpi screen
     root.withdraw()
 
     os.chdir('../data')
