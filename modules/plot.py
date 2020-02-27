@@ -16,16 +16,13 @@ if __name__ == '__main__':
 
     os.chdir('../data')
     filepath = filedialog.askopenfilename()
-    if filepath == '':
+    if not filepath:
         quit()
     plotfilename = Path(filepath).stem + '.png'
     df = pd.read_csv(filepath)
 
     # time,deltaTimeMs,angle,position,angleTarget,angleErr,positionTarget,positionErr,angleCmd,positionCmd,motorCmd,actualMotorCmd
     # 172.2985134124756,4.787921905517578,1699,-418,3129,-1428.0,0,-418.0,573146.4030813494,-8360.0,7055,0
-    # Collect data
-    train_data = []
-    all_data = []
 
     time = df.time.to_numpy()
     deltaTimeMs = df.deltaTimeMs.to_numpy()
