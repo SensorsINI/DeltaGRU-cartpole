@@ -24,7 +24,7 @@ if __name__ == '__main__':
     parser.add_argument('--pred_len', default=4, type=int, help='The number of timesteps to predict in the future')
     parser.add_argument('--batch_size', default=32, type=int, help='Batch size.')
     parser.add_argument('--num_epochs', default=30, type=int, help='Number of epochs to train for.')
-    parser.add_argument('--mode', default=0, type=int, help='Mode 0 - Pretrain on GRU; Mode 1 - Retrain on GRU; Mode 2 - Retrain on DeltaGRU')
+    parser.add_argument('--mode', default=1, type=int, help='Mode 0 - Pretrain on GRU; Mode 1 - Retrain on GRU; Mode 2 - Retrain on DeltaGRU')
     parser.add_argument('--num_rnn_layers', default=2, type=int, help='Number of RNN layers')
     parser.add_argument('--rnn_hid_size', default=32, type=int, help='RNN Hidden layer size')
     parser.add_argument('--lr', default=5e-4, type=float, help='Learning rate')  # 5e-4
@@ -90,23 +90,20 @@ if __name__ == '__main__':
     wqf = args.wqf
 
     # Save and Log
+    str_target_variable = 'cart-pole'
     if mode == 0:  # Pretrain on GRU
-        str_target_variable = 'ankle_knee'
         str_net_arch = str(num_rnn_layers) + 'L-' + str(rnn_hid_size) + 'H-'
         filename = str_net_arch + str(rnn_type) + '-' + str(look_back_len) + 'T-' + str_target_variable
         pretrain_model_path = str_net_arch + 'GRU'
         logpath = './log/' + filename + '.csv'
         savepath = './save/' + filename + '.pt'
     elif mode == 1:  # Retrain on GRU
-        str_target_variable = 'ankle_knee'
         str_net_arch = str(num_rnn_layers) + 'L-' + str(rnn_hid_size) + 'H-'
-
         filename = str_net_arch + str(rnn_type) + '-' + str(look_back_len) + 'T-' + str_target_variable
         pretrain_model_path = './save/' + str_net_arch + 'GRU' + '-' + str(look_back_len) + 'T-' + str_target_variable + '.pt'
         logpath = './log/' + filename + '.csv'
         savepath = './save/' + filename + '.pt'
     elif mode == 2:  # Retrain on DeltaGRU
-        str_target_variable = 'ankle_knee'
         str_net_arch = str(num_rnn_layers) + 'L-' + str(rnn_hid_size) + 'H-'
         filename = str_net_arch + str(rnn_type) + '-' + str(look_back_len) + 'T-' + str_target_variable
         pretrain_model_path = './save/' + str_net_arch + 'GRU' + '-' + str(look_back_len) + 'T-' + str_target_variable + '.pt'
