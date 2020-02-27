@@ -47,7 +47,7 @@ if __name__ == '__main__':
     plt.subplot(3, 1, 3)
     plt.plot(time, actualMotorCmd)
     plt.xlabel('time (s)')
-    plt.ylabel('motor cmd (')
+    plt.ylabel('motor cmd (PWM)')
 
     plt.savefig(plotfilename)
     plt.show()
