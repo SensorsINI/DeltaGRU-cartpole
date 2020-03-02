@@ -20,22 +20,25 @@ from modules.deltarnn import get_temporal_sparsity
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train a GRU network.')
     parser.add_argument('--seed', default=1, type=int, help='Initialize the random seed of the run (for reproducibility).')
-    parser.add_argument('--look_back_len', default=10, type=int, help='The number of timesteps for RNN to look at')
-    parser.add_argument('--pred_len', default=4, type=int, help='The number of timesteps to predict in the future')
-    parser.add_argument('--batch_size', default=32, type=int, help='Batch size.')
+    parser.add_argument('--cw_plen', default=20, type=int, help='Number of previous timesteps in the context window, leads to initial latency')
+    parser.add_argument('--cw_flen', default=0, type=int, help='Number of future timesteps in the context window, leads to consistent latency')
+    parser.add_argument('--pw_len', default=5, type=int, help='Number of future timesteps in the prediction window')
+    parser.add_argument('--pw_off', default=1, type=int, help='Offset in #timesteps of the prediction window w.r.t the current timestep')
+    parser.add_argument('--seq_len', default=100, type=int, help='Sequence Length')
+    parser.add_argument('--batch_size', default=64, type=int, help='Batch size.')
     parser.add_argument('--num_epochs', default=30, type=int, help='Number of epochs to train for.')
-    parser.add_argument('--mode', default=1, type=int, help='Mode 0 - Pretrain on GRU; Mode 1 - Retrain on GRU; Mode 2 - Retrain on DeltaGRU')
+    parser.add_argument('--mode', default=0, type=int, help='Mode 0 - Pretrain on GRU; Mode 1 - Retrain on GRU; Mode 2 - Retrain on DeltaGRU')
     parser.add_argument('--num_rnn_layers', default=2, type=int, help='Number of RNN layers')
-    parser.add_argument('--rnn_hid_size', default=32, type=int, help='RNN Hidden layer size')
+    parser.add_argument('--rnn_hid_size', default=512, type=int, help='RNN Hidden layer size')
     parser.add_argument('--lr', default=5e-4, type=float, help='Learning rate')  # 5e-4
     parser.add_argument('--qa', default=0, type=int, help='Whether quantize the network activations')
     parser.add_argument('--qw', default=1, type=int, help='Whether quantize the network weights')
     parser.add_argument('--aqi', default=8, type=int, help='Number of integer bits before decimal point for activation')
     parser.add_argument('--aqf', default=8, type=int, help='Number of integer bits after decimal point for activation')
-    parser.add_argument('--wqi', default=1, type=int, help='Number of integer bits before decimal point for weight')
-    parser.add_argument('--wqf', default=7, type=int, help='Number of integer bits after decimal point for weight')
-    parser.add_argument('--th_x', default=4/256, type=float, help='Delta threshold for inputs')
-    parser.add_argument('--th_h', default=128/256, type=float, help='Delta threshold for hidden states')
+    parser.add_argument('--wqi', default=8, type=int, help='Number of integer bits before decimal point for weight')
+    parser.add_argument('--wqf', default=8, type=int, help='Number of integer bits after decimal point for weight')
+    parser.add_argument('--th_x', default=64/256, type=float, help='Delta threshold for inputs')
+    parser.add_argument('--th_h', default=64/256, type=float, help='Delta threshold for hidden states')
     args = parser.parse_args()
 
     # Make folders
@@ -54,22 +57,27 @@ if __name__ == '__main__':
     torch.backends.cudnn.deterministic = True
 
     # Hyperparameters
-    look_back_len = args.look_back_len            # Length of history in timesteps used to train the network
-    pred_len = args.pred_len                      # Length of future in timesteps to predict
-    lr = args.lr                                  # Learning rate
-    batch_size = args.batch_size                  # Mini-batch size
-    num_epochs = args.num_epochs                 # Number of epoches to train the network
+    cw_plen = args.cw_plen            # Length of history in timesteps used to train the network
+    cw_flen = args.cw_flen            # Length of future in timesteps to predict
+    pw_len = args.pw_len              # Offset of future in timesteps to predict
+    pw_off = args.pw_off              # Length of future in timesteps to predict
+    seq_len = args.seq_len            # Sequence length
+    lr = args.lr                      # Learning rate
+    batch_size = args.batch_size      # Mini-batch size
+    num_epochs = args.num_epochs      # Number of epoches to train the network
     mode = args.mode
 
     print('###################################################################################\n\r'
           '# Hyperparameters\n\r'
           '###################################################################################')
-    print("mode =               ", mode)
-    print("look_back_len =      ", look_back_len)
-    print("pred_len =           ", pred_len)
-    print("lr =                 ", lr)
-    print("batch_size =         ", batch_size)
-    print("num_epochs =         ", num_epochs)
+    print("mode       =  ", mode)
+    print("cw_plen    =  ", cw_plen)
+    print("cw_flen    =  ", cw_flen)
+    print("pw_len     =  ", pw_len)
+    print("pw_off     =  ", pw_off)
+    print("lr         =  ", lr)
+    print("batch_size =  ", batch_size)
+    print("num_epochs =  ", num_epochs)
 
     # Network Dimension
     rnn_hid_size = args.rnn_hid_size
@@ -93,20 +101,23 @@ if __name__ == '__main__':
     str_target_variable = 'cart-pole'
     if mode == 0:  # Pretrain on GRU
         str_net_arch = str(num_rnn_layers) + 'L-' + str(rnn_hid_size) + 'H-'
-        filename = str_net_arch + str(rnn_type) + '-' + str(look_back_len) + 'T-' + str_target_variable
+        str_windows = str(cw_plen) + 'CWP-' + str(cw_flen) + 'CWF-' + str(pw_len) + 'PWL-' + str(pw_off) + 'PWO-'
+        filename = str_net_arch + str(rnn_type) + '-' + str_windows + str_target_variable
         pretrain_model_path = str_net_arch + 'GRU'
         logpath = './log/' + filename + '.csv'
         savepath = './save/' + filename + '.pt'
     elif mode == 1:  # Retrain on GRU
         str_net_arch = str(num_rnn_layers) + 'L-' + str(rnn_hid_size) + 'H-'
-        filename = str_net_arch + str(rnn_type) + '-' + str(look_back_len) + 'T-' + str_target_variable
-        pretrain_model_path = './save/' + str_net_arch + 'GRU' + '-' + str(look_back_len) + 'T-' + str_target_variable + '.pt'
+        str_windows = str(cw_plen) + 'CWP-' + str(cw_flen) + 'CWF-' + str(pw_len) + 'PWL-' + str(pw_off) + 'PWO-'
+        filename = str_net_arch + str(rnn_type) + '-' + str_windows + str_target_variable
+        pretrain_model_path = './save/' + filename + str_target_variable + '.pt'
         logpath = './log/' + filename + '.csv'
         savepath = './save/' + filename + '.pt'
     elif mode == 2:  # Retrain on DeltaGRU
         str_net_arch = str(num_rnn_layers) + 'L-' + str(rnn_hid_size) + 'H-'
-        filename = str_net_arch + str(rnn_type) + '-' + str(look_back_len) + 'T-' + str_target_variable
-        pretrain_model_path = './save/' + str_net_arch + 'GRU' + '-' + str(look_back_len) + 'T-' + str_target_variable + '.pt'
+        str_windows = str(cw_plen) + 'CWP-' + str(cw_flen) + 'CWF-' + str(pw_len) + 'PWL-' + str(pw_off) + 'PWO-'
+        filename = str_net_arch + str(rnn_type) + '-' + str_windows + str_target_variable
+        pretrain_model_path = './save/' + str_net_arch + 'GRU' + '-' + str_windows + str_target_variable + '.pt'
         logpath = './log/' + filename + '_' + str(th_x) + '.csv'
         savepath = './save/' + filename + '_' + str(th_x) + '.pt'
 
@@ -114,9 +125,9 @@ if __name__ == '__main__':
     ########################################################
     # Create Dataset
     ########################################################
-    _, data_1, labels_1 = load_data('data/cartpole-2020-02-27-14-14-23 pololu control plus free plus cart response.csv',look_back_len, pred_len)
-    _, data_2, labels_2 = load_data('data/cartpole-2020-02-27-14-18-18 pololu PD control.csv',look_back_len, pred_len)
-    _, data_3, labels_3 = load_data('data/cartpole-2020-02-21-10-12-40.csv',look_back_len, pred_len)
+    _, data_1, labels_1 = load_data('data/cartpole-2020-02-27-14-14-23 pololu control plus free plus cart response.csv', cw_plen, cw_flen, pw_len, pw_off, seq_len)
+    _, data_2, labels_2 = load_data('data/cartpole-2020-02-27-14-18-18 pololu PD control.csv', cw_plen, cw_flen, pw_len, pw_off, seq_len)
+    _, data_3, labels_3 = load_data('data/cartpole-2020-02-21-10-12-40.csv', cw_plen, cw_flen, pw_len, pw_off, seq_len)
 
     train_ampro_data = data_1 #np.concatenate((data_1), axis=0) # if only one file, then don't concatenate, it kills an axis
     train_ampro_labels = labels_1 #np.concatenate((labels_1), axis=0)
@@ -159,15 +170,6 @@ if __name__ == '__main__':
     # print("Test  data  dimension: ", test_data_norm.shape)
     # print("Test  label dimension: ", test_ampro_labels.shape)
     print("\n")
-
-    if mode == 3:
-        feat_size = train_data_norm.size(2)
-        train_data_norm = t.reshape(train_data_norm, (-1, look_back_len*feat_size))
-        dev_data_norm = t.reshape(dev_data_norm, (-1, look_back_len*feat_size))
-        test_data_norm = t.reshape(test_data_norm, (-1, look_back_len*feat_size))
-        train_labels = train_labels[:, -1:, :].squeeze()
-        dev_labels = dev_labels[:, -1:, :].squeeze()
-        test_labels = test_labels[:, -1:, :].squeeze()
 
     # Create PyTorch Dataset
     train_set = Dataset(train_data_norm, train_labels, mode)
@@ -250,7 +252,7 @@ if __name__ == '__main__':
     optimizer = optim.Adam(net.parameters(), amsgrad=True, lr=lr)
 
     # Select Loss Function
-    criterion = nn.L1Loss()  # Mean square error loss function
+    criterion = nn.L1Loss()  # L1 loss function
     # criterion = nn.MSELoss()  # Mean square error loss function
 
     ########################################################
@@ -312,7 +314,7 @@ if __name__ == '__main__':
             optimizer.zero_grad()
 
             # Forward propagation
-            # GRU Input size must be (look_back_len, batch, input_size)
+            # GRU Input size must be (seq_len, batch, input_size)
             out, _, _ = net(batch)
 
             # Get loss

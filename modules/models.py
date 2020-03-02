@@ -83,9 +83,9 @@ class Model(nn.Module):
                 nn.Dropout(p=0.5),
              )
         self.fc = nn.Sequential(
-            # nn.Linear(in_features=self.cla_size, out_features=self.cla_size, bias=True),
-            # nn.ReLU(),
-            # nn.Dropout(p=0.5),
+            nn.Linear(in_features=self.cla_size, out_features=self.cla_size, bias=True),
+            nn.ReLU(),
+            nn.Dropout(p=0.5),
             nn.Linear(in_features=self.cla_size, out_features=num_classes, bias=True)
         )
 
