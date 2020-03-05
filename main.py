@@ -29,7 +29,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_epochs', default=30, type=int, help='Number of epochs to train for.')
     parser.add_argument('--mode', default=0, type=int, help='Mode 0 - Pretrain on GRU; Mode 1 - Retrain on GRU; Mode 2 - Retrain on DeltaGRU')
     parser.add_argument('--num_rnn_layers', default=2, type=int, help='Number of RNN layers')
-    parser.add_argument('--rnn_hid_size', default=512, type=int, help='RNN Hidden layer size')
+    parser.add_argument('--rnn_hid_size', default=128, type=int, help='RNN Hidden layer size')
     parser.add_argument('--lr', default=5e-4, type=float, help='Learning rate')  # 5e-4
     parser.add_argument('--qa', default=0, type=int, help='Whether quantize the network activations')
     parser.add_argument('--qw', default=1, type=int, help='Whether quantize the network weights')

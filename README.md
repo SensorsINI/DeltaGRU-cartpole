@@ -16,3 +16,9 @@ Run the script.
 ```
 python main.py
 ```
+
+# Plot
+Run the script test_plot.py to plot the RNN outputs. Please make sure that you have the correct model (.pt file) saved in the 'save' folder.
+```
+python test_plot.py
+```

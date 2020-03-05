@@ -20,12 +20,11 @@ if __name__ == '__main__':
     parser.add_argument('--pw_off', default=1, type=int, help='Offset in #timesteps of the prediction window w.r.t the current timestep')
     parser.add_argument('--pw_idx', default=1, type=int, help='Index of timestep in the prediction window to show in plots')
     parser.add_argument('--seq_len', default=100, type=int, help='Sequence Length')
-    parser.add_argument('--batch_size', default=64, type=int, help='Batch size.')
-    parser.add_argument('--num_epochs', default=30, type=int, help='Number of epochs to train for.')
+    parser.add_argument('--start_test_tstep', default=0, type=int, help='Start position of the plot')
+    parser.add_argument('--num_test_tstep', default=4000, type=int, help='Number of timesteps in the plot')
     parser.add_argument('--rnn_type', default='GRU', help='Mode 0 - Pretrain on GRU; Mode 1 - Retrain on GRU; Mode 2 - Retrain on DeltaGRU')
     parser.add_argument('--num_rnn_layers', default=2, type=int, help='Number of RNN layers')
-    parser.add_argument('--rnn_hid_size', default=512, type=int, help='RNN Hidden layer size')
-    parser.add_argument('--lr', default=5e-4, type=float, help='Learning rate')  # 5e-4
+    parser.add_argument('--rnn_hid_size', default=128, type=int, help='RNN Hidden layer size')
     parser.add_argument('--qa', default=0, type=int, help='Whether quantize the network activations')
     parser.add_argument('--qw', default=1, type=int, help='Whether quantize the network weights')
     parser.add_argument('--aqi', default=8, type=int, help='Number of integer bits before decimal point for activation')
@@ -49,13 +48,12 @@ if __name__ == '__main__':
     cw_flen = args.cw_flen  # Length of future in timesteps to predict
     pw_len = args.pw_len  # Offset of future in timesteps to predict
     pw_off = args.pw_off  # Length of future in timesteps to predict
+    pw_idx = args.pw_idx  # Index of timestep in the prediction window
     seq_len = args.seq_len  # Sequence length
-    lr = args.lr  # Learning rate
-    batch_size = args.batch_size  # Mini-batch size
 
     # Plot Settings
-    start_time_step = 0 #2100
-    num_test_sample = 4000 #600
+    start_test_tstep = args.start_test_tstep
+    num_test_tstep = args.num_test_tstep
 
     # Whether test retrain model
     retrain = 0
@@ -176,6 +174,31 @@ if __name__ == '__main__':
     epoch_nz_dx = 0
     epoch_nz_dh = 0
 
+    ########################################################################
+    # Evaluation
+    ########################################################################
+    # Continuous Test
+    test_data = test_data[start_test_tstep:start_test_tstep + num_test_tstep, 0, :].unsqueeze(1)
+    test_data = test_data.transpose(0, 1)
+    test_data_norm = (test_data - mean_train_data) / std_train_data
+
+    # Get corresponding actual series
+    test_actual = test_labels[start_test_tstep:start_test_tstep + num_test_tstep, :, :].squeeze().numpy()
+
+    # Run trained network
+    net = net.eval()
+    test_sample_norm = test_data_norm.cuda()
+    test_sample_norm = quantizeTensor(test_sample_norm, aqi, aqf, 1)
+    test_sample_norm = test_sample_norm.transpose(0, 1)
+    pred_series, pred_point, _ = net(test_sample_norm)
+
+    print('###################################################################################\n\r'
+          '# Evaluation Information\n\r'
+          '###################################################################################')
+
+    print("Test Sample Size: ", test_sample_norm.size())
+    print("Test Output Size: ", pred_series.size())
+    print("Test Label Size:  ", test_actual.shape)
 
     ########################################################################
     # Plot Test Results
@@ -189,108 +212,41 @@ if __name__ == '__main__':
     #          'ytick.labelsize':'x-large'}
     # pylab.rcParams.update(params)
 
-
-
-    # Continuous Test
-    test_data = test_data[start_time_step:start_time_step+num_test_sample, 0, :].unsqueeze(1)
-    test_data = test_data.transpose(0, 1)
-    test_data_norm = (test_data-mean_train_data)/std_train_data
-
-    # Get corresponding actual series
-    test_actual = test_labels[start_time_step:start_time_step+num_test_sample, :, :].squeeze().numpy()
-
-    # Run trained network
-    net = net.eval()
-    test_sample_norm = test_data_norm.cuda()
-
-    test_sample_norm = quantizeTensor(test_sample_norm, aqi, aqf, 1)
-    test_sample_norm = test_sample_norm.transpose(0, 1)
-    print("Test Sample Size: ", test_sample_norm.size())
-    pred_series, pred_point, _ = net(test_sample_norm)
-    print("Test Output Size: ", test_sample_norm.size())
-    pred_point = pred_point.cpu().squeeze().detach().numpy()
     pred_series = pred_series.cpu().detach().numpy()
-    print(test_actual.shape)
-    print(pred_series.shape)
 
     # Select Plot Range
-    y_actual = test_labels[start_time_step:start_time_step+num_test_sample, 0, :]
+    y_actual = test_labels[start_test_tstep:start_test_tstep+num_test_tstep, 0, :]
     y_pred = pred_series
 
     # Draw a plot of RNN input and output
-    sample_rate = 200  # 200 Hz
-    x_actual = np.arange(0, num_test_sample)/sample_rate
-    x_pred = np.arange(pw_idx, pred_len+num_test_sample)/sample_rate
+    # sample_rate = 200  # 200 Hz
+    x_actual = np.arange(0, num_test_tstep)
+    x_pred = np.arange(pw_idx, pw_idx+num_test_tstep)
 
     # Plot velocity_actual_ankle
-    fig1, (ax3, ax4) = plt.subplots(2, 1, figsize=(14, 8))
+    fig1, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 8))
     # ax3.subplots_adjust(top=0.8)
     # ax3.title.set_text('torque_desired_ankle')
     # ax3.set_ylabel("$\\tau_{da} (kg\cdot m^{2}\cdot s^{-2})$", fontsize=24)
-    ax3.set_title('(a)', fontsize=24)
-    ax3.set_ylabel("$\\tau^{d}_{pa} (kg\cdot m^{2}\cdot s^{-2})$", fontsize=24)
-    ax3.set_xlabel('t (s)', fontsize=24)
-    ax3.plot(x_actual, test_actual[:, 0, 0], 'k.', markersize=12, label='PD')
-    ax3.plot(x_pred, pred_series[0, :, 0], 'r.', markersize=3, label='RNN')
-    ax3.tick_params(axis='both', which='major', labelsize=20)
-    ax3.set_yticks(np.arange(0, 36, 5))
-    ax3.legend(fontsize=18)
+    ax1.set_title('(a)', fontsize=24)
+    ax1.set_ylabel("Angle", fontsize=24)
+    ax1.set_xlabel('Time', fontsize=24)
+    ax1.plot(x_actual, test_actual[:, 0, pw_idx*2], 'k.', markersize=12, label='Ground Truth')
+    ax1.plot(x_pred, pred_series[0, :, pw_idx*2], 'r.', markersize=3, label='RNN')
+    ax1.tick_params(axis='both', which='major', labelsize=20)
+    # ax3.set_yticks(np.arange(0, 36, 5))
+    ax1.legend(fontsize=18)
 
-    # fig1.savefig('./plot/torque_desired_ankle.svg', format='svg', bbox_inches='tight')
-
-
-    # # Plot velocity_actual_knee
-    # ax4 = plt.subplot(2, 1, 2)
-    ax4.set_title('(b)', fontsize=24)
-    ax4.set_ylabel("$\\tau^{d}_{pk} (kg\cdot m^{2}\cdot s^{-2})$", fontsize=24)
-    ax4.set_xlabel('t (s)', fontsize=24)
-    # ax4.plot(x_actual, test_actual[:, 0, 1], 'k.', linewidth=5, label='PD')
-    # ax4.plot(x_pred, pred_series[0, :, 1], 'r.', label='RNN')
-    ax4.plot(x_actual, test_actual[:, 0, 1], 'k.', markersize=12, label='PD')
-    ax4.plot(x_pred, pred_series[0, :, 1], 'r.', markersize=3, label='RNN')
-    ax4.tick_params(axis='both', which='major', labelsize=20)
-    #ax4.plot(x_pred, test_drnn[:, 0, 1], 'gx', label='DRNN Output(Predicted)')
-    # ax4.legend(fontsize=18)
-    ax4.set_yticks(np.arange(-20, 120, 20))
+    # Plot w
+    ax2.set_title('(b)', fontsize=24)
+    ax2.set_ylabel("Position", fontsize=24)
+    ax2.set_xlabel('Time', fontsize=24)
+    ax2.plot(x_actual, test_actual[:, 0, pw_idx*2+1], 'k.', markersize=12, label='Ground Truth')
+    ax2.plot(x_pred, pred_series[0, :, pw_idx*2+1], 'r.', markersize=3, label='RNN')
+    ax2.tick_params(axis='both', which='major', labelsize=20)
+    # ax2.legend(fontsize=18)
+    # ax2.set_yticks(np.arange(-20, 120, 20))
 
     fig1.tight_layout(pad=1)
-    fig1.savefig('./plot/eval.svg', format='svg', bbox_inches='tight')
-
-    # # Plot control_signal_ankle
-    # ax5 = plt.subplot(8, 1, 5)
-    # ax5.title.set_text('control_signal_ankle')
-    # ax5.set_ylabel('y')
-    # ax5.set_xlabel('t (s)')
-    # ax5.plot(x_actual, test_actual[:, 0, 4], 'r-', label='Input (Actual)')
-    # ax5.plot(x_pred, pred_series[:, 0, 4], 'bx', label='Output(Predicted)')
-    # ax5.legend()
-    #
-    # # Plot control_signal_knee
-    # ax6 = plt.subplot(8, 1, 6)
-    # ax6.title.set_text('control_signal_knee')
-    # ax6.set_ylabel('y')
-    # ax6.set_xlabel('t (s)')
-    # ax6.plot(x_actual, test_actual[:, 0, 5], 'r.', label='Input (Actual)')
-    # ax6.plot(x_pred, pred_series[:, 0, 5], 'bx', label='Output(Predicted)')
-    # ax6.legend()
-    #
-    # # Plot torque_actual_ankle
-    # ax7 = plt.subplot(8, 1, 7)
-    # ax7.title.set_text('torque_actual_ankle')
-    # ax7.set_ylabel('y')
-    # ax7.set_xlabel('t (s)')
-    # ax7.plot(x_actual, test_actual[:, 0, 6], 'r-', label='Input (Actual)')
-    # ax7.plot(x_pred, pred_series[:, 0, 6], 'bx', label='Output(Predicted)')
-    # ax7.legend()
-    #
-    # # Plot torque_actual_knee
-    # ax8 = plt.subplot(8, 1, 8)
-    # ax8.title.set_text('torque_actual_knee')
-    # ax8.set_ylabel('y')
-    # ax8.set_xlabel('t (s)')
-    # ax8.plot(x_actual, test_actual[:, 0, 7], 'r-', label='Input (Actual)')
-    # ax8.plot(x_pred, pred_series[:, 0, 7], 'bx', label='Output(Predicted)')
-    # ax8.legend()
-
-
+    fig1.savefig('./plot.svg', format='svg', bbox_inches='tight')
     plt.show()
