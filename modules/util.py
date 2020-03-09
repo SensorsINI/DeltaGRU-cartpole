@@ -5,12 +5,35 @@
 # __maintainer__ = "Chang Gao"
 # __email__      = "chang.gao@uzh.ch"
 # __status__     = "Prototype"
-
+import sys
+import os
 import torch as t
 import torch.nn.functional as F
 from torch.autograd.function import Function
 import time
 import math
+
+def save_normalization(save_path, mean, std):
+    fn_base = os.path.splitext(save_path)[0]
+    print("\nSaving normalization parameters to " + str(fn_base)+'-XX.pt')
+    t.save(mean, str(fn_base+'-mean.pt'))
+    t.save(std, str(fn_base+'-std.pt'))
+
+def load_normalization(save_path):
+    fn_base = os.path.splitext(save_path)[0]
+    print("\nLoading normalization parameters from ", str(fn_base))
+    mean = t.load(fn_base+'-mean.pt')
+    std = t.load(fn_base + '-std.pt')
+    return mean, std
+
+# print command line (maybe to use in a script)
+def print_commandline(parser):
+    args = parser.parse_args()
+    print('Command line:')
+    print(sys.argv[0], end=' ')
+    for arg in vars(args):
+        print('--' + str(arg) + ' ' + str(getattr(args, arg)), end=' ')
+    print()
 
 
 def timeSince(since):
@@ -49,7 +72,7 @@ def quantizeTensor(x, m, n, en):
     power = 2. ** n
     clip_val = 2. ** (m + n - 1)
     value = t.round(x * power)
-    #value = GradPreserveRoundOp.apply(x * power)  # rounding
+    # value = GradPreserveRoundOp.apply(x * power)  # rounding
     value = t.clamp(value, -clip_val, clip_val - 1)  # saturation arithmetic
     value = value / power
     return value
@@ -72,7 +95,7 @@ def pruneTensor(x, alpha):
 
     n_neuron = x.size(0)
     n_input = x.size(1)
-    prune_prob_mask = t.exp(-alpha*t.unsqueeze(t.arange(0, n_neuron), dim=1).repeat(1, n_input).float()).cuda()
+    prune_prob_mask = t.exp(-alpha * t.unsqueeze(t.arange(0, n_neuron), dim=1).repeat(1, n_input).float()).cuda()
     prune_rand_mask = t.rand(n_neuron, n_input).cuda()
     prune_mask = prune_rand_mask.masked_fill_(prune_rand_mask > prune_prob_mask, 1)
     prune_mask = prune_mask.masked_fill_(prune_rand_mask <= prune_prob_mask, 0)
@@ -98,11 +121,11 @@ def targetedDropout(x, gamma, alpha, epoch):
     t.cuda.manual_seed_all(epoch)
 
     n_elements = x.numel()
-    drop_part = round(n_elements*gamma)
+    drop_part = round(n_elements * gamma)
     weight_vec = x.view(-1)
     weight_vec_abs = t.abs(weight_vec)
     sorted, indices = t.sort(weight_vec_abs)
-    #print(sorted)
+    # print(sorted)
     drop_indices = indices[0:drop_part]
     drop_rand_mask = t.rand(drop_indices.size(0)).cuda()
     drop_mask = t.ones(drop_indices.size(0)).cuda()
@@ -194,23 +217,22 @@ class GradPreserveThreshold(Function):
 
 
 def look_ahead_seq(seq_in, t_width=16, padding=0, batch_first=0):
-
     # Convert input sequence to batch first shape (seq_len, n_batch, n_feature)
     seq = seq_in
     if batch_first:
         seq = seq_in.transpose(0, 1)
-    
+
     seq_len = seq.size(0)
     n_batch = seq.size(1)
     n_feature = seq.size(2)
-    #int(t.ceil(float(seq_len)/float(t_width)))
+    # int(t.ceil(float(seq_len)/float(t_width)))
     new_seq = []
     for i in range(0, seq_len):
         if i < seq_len - t_width:
-            seq_block = seq[i:i+t_width, :, :]
+            seq_block = seq[i:i + t_width, :, :]
         else:
             seq_block = seq[i:, :, :]
-            seq_block_pad = t.zeros([t_width-(seq_len-i), n_batch, n_feature], dtype=t.float32).cuda()
+            seq_block_pad = t.zeros([t_width - (seq_len - i), n_batch, n_feature], dtype=t.float32).cuda()
             seq_block = t.cat((seq_block, seq_block_pad), 0)
         new_seq.append(seq_block)
     new_seq = t.stack(new_seq, 0)
@@ -233,7 +255,7 @@ def look_around_seq(seq_in, t_width=16, padding=0, batch_first=0):
     new_seq = []
     for i in range(0, seq_len):
         if i >= seq_len - t_width:
-            seq_block = seq[i-t_width:, :, :]
+            seq_block = seq[i - t_width:, :, :]
             seq_block_pad = t.zeros([t_width - (seq_len - i) + 1, n_batch, n_feature], dtype=t.float32).cuda()
             seq_block = t.cat((seq_block, seq_block_pad), 0)
         elif i < t_width:
@@ -241,8 +263,8 @@ def look_around_seq(seq_in, t_width=16, padding=0, batch_first=0):
             seq_block_pad = t.zeros([t_width - i, n_batch, n_feature], dtype=t.float32).cuda()
             seq_block = t.cat((seq_block, seq_block_pad), 0)
         else:
-            seq_block = seq[i-t_width:i + 1 + t_width, :, :]
-        #print(seq_block.size())
+            seq_block = seq[i - t_width:i + 1 + t_width, :, :]
+        # print(seq_block.size())
         new_seq.append(seq_block)
     new_seq = t.stack(new_seq, 0)
     new_seq = new_seq.transpose(1, 2)
@@ -255,7 +277,7 @@ def get_temporal_sparsity(list_layer, seq_len, threshold):
     # Evaluate Sparsity
     num_zeros = 0
     num_elems = 0
-    #print(seq_len.size())
+    # print(seq_len.size())
     # Iterate through layers
     for layer in list_layer:
         all_delta_vec = layer.transpose(0, 1)

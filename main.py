@@ -1,4 +1,5 @@
 import os
+import sys
 import collections
 import argparse
 import time
@@ -11,7 +12,7 @@ from tqdm import tqdm
 import random as rnd
 import numpy as np
 import modules.models as models
-from modules.util import quantizeTensor, timeSince, quantize_rnn
+from modules.util import quantizeTensor, timeSince, quantize_rnn, print_commandline,save_normalization
 from modules.log import write_log, write_log_header
 from modules.data import load_data, Dataset
 from modules.deltarnn import get_temporal_sparsity
@@ -20,13 +21,13 @@ from modules.deltarnn import get_temporal_sparsity
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train a GRU network.')
     parser.add_argument('--seed', default=1, type=int, help='Initialize the random seed of the run (for reproducibility).')
-    parser.add_argument('--cw_plen', default=20, type=int, help='Number of previous timesteps in the context window, leads to initial latency')
+    parser.add_argument('--cw_plen', default=1, type=int, help='Number of previous timesteps in the context window, leads to initial latency')
     parser.add_argument('--cw_flen', default=0, type=int, help='Number of future timesteps in the context window, leads to consistent latency')
-    parser.add_argument('--pw_len', default=5, type=int, help='Number of future timesteps in the prediction window')
+    parser.add_argument('--pw_len', default=100, type=int, help='Number of future timesteps in the prediction window')
     parser.add_argument('--pw_off', default=1, type=int, help='Offset in #timesteps of the prediction window w.r.t the current timestep')
     parser.add_argument('--seq_len', default=100, type=int, help='Sequence Length')
     parser.add_argument('--batch_size', default=64, type=int, help='Batch size.')
-    parser.add_argument('--num_epochs', default=30, type=int, help='Number of epochs to train for.')
+    parser.add_argument('--num_epochs', default=5, type=int, help='Number of epochs to train for.')
     parser.add_argument('--mode', default=0, type=int, help='Mode 0 - Pretrain on GRU; Mode 1 - Retrain on GRU; Mode 2 - Retrain on DeltaGRU')
     parser.add_argument('--num_rnn_layers', default=2, type=int, help='Number of RNN layers')
     parser.add_argument('--rnn_hid_size', default=128, type=int, help='RNN Hidden layer size')
@@ -40,6 +41,8 @@ if __name__ == '__main__':
     parser.add_argument('--th_x', default=64/256, type=float, help='Delta threshold for inputs')
     parser.add_argument('--th_h', default=64/256, type=float, help='Delta threshold for hidden states')
     args = parser.parse_args()
+
+    print_commandline(parser)
 
     # Make folders
     try:
@@ -99,6 +102,7 @@ if __name__ == '__main__':
 
     # Save and Log
     str_target_variable = 'cart-pole'
+    save_path={}
     if mode == 0:  # Pretrain on GRU
         str_net_arch = str(num_rnn_layers) + 'L-' + str(rnn_hid_size) + 'H-'
         str_windows = str(cw_plen) + 'CWP-' + str(cw_flen) + 'CWF-' + str(pw_len) + 'PWL-' + str(pw_off) + 'PWO-'
@@ -125,9 +129,12 @@ if __name__ == '__main__':
     ########################################################
     # Create Dataset
     ########################################################
-    _, data_1, labels_1 = load_data('data/cartpole-2020-02-27-14-14-23 pololu control plus free plus cart response.csv', cw_plen, cw_flen, pw_len, pw_off, seq_len)
-    _, data_2, labels_2 = load_data('data/cartpole-2020-02-27-14-18-18 pololu PD control.csv', cw_plen, cw_flen, pw_len, pw_off, seq_len)
-    _, data_3, labels_3 = load_data('data/cartpole-2020-02-21-10-12-40.csv', cw_plen, cw_flen, pw_len, pw_off, seq_len)
+    _, data_1, labels_1 = load_data('data/cartpole-2020-03-09-14-43-54 stock motor PD control w dance and steps.csv',
+                                    cw_plen, cw_flen, pw_len, pw_off, seq_len)
+    _, data_2, labels_2 = load_data('data/cartpole-2020-03-09-14-21-24 stock motor PD angle zero correct.csv', cw_plen,
+                                    cw_flen, pw_len, pw_off, seq_len)
+    _, data_3, labels_3 = load_data('data/cartpole-2020-03-09-14-24-21 stock motor PD with dance.csv', cw_plen, cw_flen,
+                                    pw_len, pw_off, seq_len)
 
     train_ampro_data = data_1 #np.concatenate((data_1), axis=0) # if only one file, then don't concatenate, it kills an axis
     train_ampro_labels = labels_1 #np.concatenate((labels_1), axis=0)
@@ -144,12 +151,13 @@ if __name__ == '__main__':
     test_data = torch.Tensor(test_ampro_data).float()
     test_labels = torch.Tensor(test_ampro_labels).float()
 
-    # Normalize data
+    # Normalize data TODO save these parameters to use for inference
     mean_train_data = torch.mean(train_data.reshape(train_data.size(0) * train_data.size(1), -1), 0)
     std_train_data = torch.std(train_data.reshape(train_data.size(0) * train_data.size(1), -1), 0)
     train_data_norm = (train_data - mean_train_data) / std_train_data
     dev_data_norm = (dev_data - mean_train_data) / std_train_data
     test_data_norm = (test_data - mean_train_data) / std_train_data
+    save_normalization(savepath,mean_train_data,std_train_data)
 
     # Get number of classes
     num_classes = train_labels.size(-1)

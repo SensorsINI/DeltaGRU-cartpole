@@ -1,3 +1,4 @@
+import sys
 import collections
 import argparse
 from modules import models as models
@@ -5,7 +6,7 @@ import time
 import torch.utils.data.dataloader
 import numpy as np
 import random as rnd
-from modules.util import quantizeTensor
+from modules.util import quantizeTensor, print_commandline, load_normalization
 from modules.data import load_data, Dataset
 import matplotlib.pyplot as plt
 from torch.utils import data
@@ -34,6 +35,9 @@ if __name__ == '__main__':
     parser.add_argument('--th_x', default=64/256, type=float, help='Delta threshold for inputs')
     parser.add_argument('--th_h', default=64/256, type=float, help='Delta threshold for hidden states')
     args = parser.parse_args()
+
+    # print command line (maybe to use in a script)
+    print_commandline(parser)
 
     # Set seeds
     seed = args.seed
@@ -85,27 +89,28 @@ if __name__ == '__main__':
     ########################################################
     # Create Dataset
     ########################################################
-    _, data_1, labels_1 = load_data('data/cartpole-2020-02-27-14-14-23 pololu control plus free plus cart response.csv', cw_plen, cw_flen, pw_len, pw_off, seq_len)
-    _, data_2, labels_2 = load_data('data/cartpole-2020-02-27-14-18-18 pololu PD control.csv', cw_plen, cw_flen, pw_len, pw_off, seq_len)
-    _, data_3, labels_3 = load_data('data/cartpole-2020-02-21-10-12-40.csv', cw_plen, cw_flen, pw_len, pw_off, seq_len)
+    # _, data_1, labels_1 = load_data('data/cartpole-2020-03-09-14-43-54 stock motor PD control w dance and steps.csv', cw_plen, cw_flen, pw_len, pw_off, seq_len)
+    # _, data_2, labels_2 = load_data('data/cartpole-2020-03-09-14-21-24 stock motor PD angle zero correct.csv', cw_plen, cw_flen, pw_len, pw_off, seq_len)
+    _, data_3, labels_3 = load_data('data/cartpole-2020-03-09-14-24-21 stock motor PD with dance.csv', cw_plen, cw_flen, pw_len, pw_off, seq_len)
 
-    train_ampro_data = data_1 #np.concatenate((data_1), axis=0) # if only one file, then don't concatenate, it kills an axis
-    train_ampro_labels = labels_1 #np.concatenate((labels_1), axis=0)
+    # train_ampro_data = data_1 #np.concatenate((data_1), axis=0) # if only one file, then don't concatenate, it kills an axis
+    # train_ampro_labels = labels_1 #np.concatenate((labels_1), axis=0)
     test_ampro_data = data_3
     test_ampro_labels = labels_3
 
     # Convert data to PyTorch Tensors
-    train_data = torch.Tensor(train_ampro_data).float()
-    train_labels = torch.Tensor(train_ampro_labels).float()
+    # train_data = torch.Tensor(train_ampro_data).float()
+    # train_labels = torch.Tensor(train_ampro_labels).float()
     test_data = torch.Tensor(test_ampro_data).float()
     test_labels = torch.Tensor(test_ampro_labels).float()
 
     # Get Mean and Std of Train Data78/-
-    mean_train_data = torch.mean(train_data.reshape(train_data.size(0) * train_data.size(1), -1), 0)
-    std_train_data = torch.std(train_data.reshape(train_data.size(0) * train_data.size(1), -1), 0)
+    mean_train_data, std_train_data=load_normalization(savepath)
+    # mean_train_data = torch.mean(train_data.reshape(train_data.size(0) * train_data.size(1), -1), 0)
+    # std_train_data = torch.std(train_data.reshape(train_data.size(0) * train_data.size(1), -1), 0)
 
     # Get number of classes
-    num_classes = train_labels.size(-1)
+    num_classes = test_labels.size(-1)
     print("\n")
 
 
@@ -113,8 +118,8 @@ if __name__ == '__main__':
           '# Dataset\n\r'
           '###################################################################################')
     print("Dim: (num_sample, look_back_len, feat_size)")
-    print("Train data size:  ", train_data.size())
-    print("Train label size: ", train_labels.size())
+    # print("Train data size:  ", train_data.size())
+    # print("Train label size: ", train_labels.size())
     print("Test data size:   ", test_data.size())
     print("Test label size:  ", test_labels.size())
     print("\n\r")
@@ -124,8 +129,8 @@ if __name__ == '__main__':
     ########################################################
 
     # Network Dimension
-    rnn_inp_size = train_data.size(-1)
-    num_classes = train_labels.size(-1)
+    rnn_inp_size = test_data.size(-1)
+    num_classes = test_data.size(-1)
     print("RNN Input Size:          ", rnn_inp_size)
     print("Number of Classes:       ", num_classes)
 

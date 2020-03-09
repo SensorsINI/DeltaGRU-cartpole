@@ -15,7 +15,7 @@ if __name__ == '__main__':
     root.withdraw()
 
     os.chdir('../data')
-    filepath = filedialog.askopenfilename()
+    filepath = filedialog.askopenfilename(filetypes=[("CSV data files", "*.csv")])
     if not filepath:
         quit()
     plotfilename = Path(filepath).stem + '.png'
@@ -38,11 +38,11 @@ if __name__ == '__main__':
     plt.subplot(3, 1, 1)
     plt.plot(time, angle)
     plt.title('cart-pole raw data')
-    plt.ylabel('angle (ADC)')
+    plt.ylabel('angle err (ADC)')
 
     plt.subplot(3, 1, 2)
     plt.plot(time, position)
-    plt.ylabel('position (encoder)')
+    plt.ylabel('position err (encoder)')
 
     plt.subplot(3, 1, 3)
     plt.plot(time, actualMotorCmd)

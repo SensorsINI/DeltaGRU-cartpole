@@ -44,9 +44,9 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len):
     position = df.positionErr.to_numpy() # same for position
     # compute temporal derivatives from state data
     averageDeltaT=deltaTimeMs.mean() # TODO this is approximate derivative since sample rate varied a bit around 5ms
-    dAngle=np.gradient(angle,averageDeltaT)
+    dAngle=np.gradient(angle,averageDeltaT) # TODO consider using a better controlled deriative that enforces e.g. total variation constraint
     dPosition=np.gradient(position,averageDeltaT)
-    ddAngle = np.gradient(dAngle, edge_order=1)
+    ddAngle = np.gradient(dAngle, edge_order=1)  # same for accelerations
     ddPosition = np.gradient(dPosition, edge_order=1)
     actualMotorCmd = df.actualMotorCmd.to_numpy() # zero-centered motor speed command
 
