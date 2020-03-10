@@ -27,7 +27,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_rnn_layers', default=2, type=int, help='Number of RNN layers')
     parser.add_argument('--rnn_hid_size', default=128, type=int, help='RNN Hidden layer size')
     parser.add_argument('--qa', default=0, type=int, help='Whether quantize the network activations')
-    parser.add_argument('--qw', default=1, type=int, help='Whether quantize the network weights')
+    parser.add_argument('--qw', default=0, type=int, help='Whether quantize the network weights')
     parser.add_argument('--aqi', default=8, type=int, help='Number of integer bits before decimal point for activation')
     parser.add_argument('--aqf', default=8, type=int, help='Number of integer bits after decimal point for activation')
     parser.add_argument('--wqi', default=8, type=int, help='Number of integer bits before decimal point for weight')
@@ -84,7 +84,7 @@ if __name__ == '__main__':
     pretrain_model_path = str_net_arch + 'GRU'
     logpath = './log/' + filename + '.csv'
     savepath = './save/' + filename + '.pt'
-
+    plotpath = './log/' + filename + '.svg'
 
     ########################################################
     # Create Dataset
@@ -101,16 +101,16 @@ if __name__ == '__main__':
     # Convert data to PyTorch Tensors
     # train_data = torch.Tensor(train_ampro_data).float()
     # train_labels = torch.Tensor(train_ampro_labels).float()
-    test_data = torch.Tensor(test_ampro_data).float()
-    test_labels = torch.Tensor(test_ampro_labels).float()
+    test_data = torch.Tensor(test_ampro_data).float()  # the raw sensor and control data
+    test_labels = torch.Tensor(test_ampro_labels).float() # what we want to predict (the sensor data into the future)
 
     # Get Mean and Std of Train Data78/-
-    mean_train_data, std_train_data=load_normalization(savepath)
+    mean_train_data, std_train_data=load_normalization(savepath) # we need to unnormalize the predictions to get the predictions in input units
     # mean_train_data = torch.mean(train_data.reshape(train_data.size(0) * train_data.size(1), -1), 0)
     # std_train_data = torch.std(train_data.reshape(train_data.size(0) * train_data.size(1), -1), 0)
 
     # Get number of classes
-    num_classes = test_labels.size(-1)
+    rnn_output_size = test_labels.size(-1)
     print("\n")
 
 
@@ -120,26 +120,27 @@ if __name__ == '__main__':
     print("Dim: (num_sample, look_back_len, feat_size)")
     # print("Train data size:  ", train_data.size())
     # print("Train label size: ", train_labels.size())
-    print("Test data size:   ", test_data.size())
-    print("Test label size:  ", test_labels.size())
+    print("Test data size:         ", test_data.size())
+    print("Test prediction size:   ", test_labels.size())
     print("\n\r")
 
     ########################################################
     # Define Network
     ########################################################
+    print("Loading network...")
 
     # Network Dimension
     rnn_inp_size = test_data.size(-1)
-    num_classes = test_data.size(-1)
-    print("RNN Input Size:          ", rnn_inp_size)
-    print("Number of Classes:       ", num_classes)
+    rnn_output_size = test_labels.size(-1)
+    print("RNN input size:        ", rnn_inp_size)
+    print("RNN output size:       ", rnn_output_size)
 
     # Instantiate Model
     net = models.Model(inp_size=rnn_inp_size,
                        cla_type=rnn_type,
                        cla_size=rnn_hid_size,
                        cla_layers=num_rnn_layers,
-                       num_classes=num_classes,
+                       num_classes=rnn_output_size,
                        th_x=th_x,
                        th_h=th_h,
                        eval_sparsity=0,
@@ -171,24 +172,20 @@ if __name__ == '__main__':
     ########################################################
 
     # Epoch loop
-    print("Starting testing...")
+    print("Starting inference...")
 
     # Timer
     start_time = time.time()
 
-    epoch_nz_dx = 0
-    epoch_nz_dh = 0
-
     ########################################################################
     # Evaluation
     ########################################################################
-    # Continuous Test
-    test_data = test_data[start_test_tstep:start_test_tstep + num_test_tstep, 0, :].unsqueeze(1)
+    test_data = test_data[start_test_tstep:start_test_tstep + num_test_tstep, 0, :].unsqueeze(1) # raw data
     test_data = test_data.transpose(0, 1)
-    test_data_norm = (test_data - mean_train_data) / std_train_data
+    test_data_norm = (test_data - mean_train_data) / std_train_data # to input to RNN for prediction
 
     # Get corresponding actual series
-    test_actual = test_labels[start_test_tstep:start_test_tstep + num_test_tstep, :, :].squeeze().numpy()
+    test_actual = test_labels[start_test_tstep:start_test_tstep + num_test_tstep, :, :].squeeze().numpy() # the actual output we will compare with
 
     # Run trained network
     net = net.eval()
@@ -201,9 +198,9 @@ if __name__ == '__main__':
           '# Evaluation Information\n\r'
           '###################################################################################')
 
-    print("Test Sample Size: ", test_sample_norm.size())
-    print("Test Output Size: ", pred_series.size())
-    print("Test Label Size:  ", test_actual.shape)
+    print("Test Sample Size:      ", test_sample_norm.size())
+    print("Test Output Size:      ", pred_series.size())
+    print("Test Prediction Size:  ", test_actual.shape)
 
     ########################################################################
     # Plot Test Results
@@ -220,7 +217,7 @@ if __name__ == '__main__':
     pred_series = pred_series.cpu().detach().numpy()
 
     # Select Plot Range
-    y_actual = test_labels[start_test_tstep:start_test_tstep+num_test_tstep, 0, :]
+    y_actual = test_labels[start_test_tstep:start_test_tstep + num_test_tstep, 0, :]
     y_pred = pred_series
 
     # Draw a plot of RNN input and output
@@ -228,30 +225,33 @@ if __name__ == '__main__':
     x_actual = np.arange(0, num_test_tstep)
     x_pred = np.arange(pw_idx, pw_idx+num_test_tstep)
 
-    # Plot velocity_actual_ankle
+    # compute angle from sin and cos
+    angle_actual = np.arctan2(y_actual[])
+
+    # Plot angle error
     fig1, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 8))
     # ax3.subplots_adjust(top=0.8)
     # ax3.title.set_text('torque_desired_ankle')
     # ax3.set_ylabel("$\\tau_{da} (kg\cdot m^{2}\cdot s^{-2})$", fontsize=24)
     ax1.set_title('(a)', fontsize=24)
-    ax1.set_ylabel("Angle", fontsize=24)
-    ax1.set_xlabel('Time', fontsize=24)
+    ax1.set_ylabel("angle err (ADC)", fontsize=24)
+    ax1.set_xlabel('Time (samples, 200/s)', fontsize=24)
     ax1.plot(x_actual, test_actual[:, 0, pw_idx*2], 'k.', markersize=12, label='Ground Truth')
     ax1.plot(x_pred, pred_series[0, :, pw_idx*2], 'r.', markersize=3, label='RNN')
     ax1.tick_params(axis='both', which='major', labelsize=20)
     # ax3.set_yticks(np.arange(0, 36, 5))
     ax1.legend(fontsize=18)
 
-    # Plot w
+    # Plot position error
     ax2.set_title('(b)', fontsize=24)
-    ax2.set_ylabel("Position", fontsize=24)
+    ax2.set_ylabel("position err (enc)", fontsize=24)
     ax2.set_xlabel('Time', fontsize=24)
-    ax2.plot(x_actual, test_actual[:, 0, pw_idx*2+1], 'k.', markersize=12, label='Ground Truth')
+    ax2.plot(x_actual, test_actual[:, 0, pw_idx*2+4], 'k.', markersize=12, label='Ground Truth')
     ax2.plot(x_pred, pred_series[0, :, pw_idx*2+1], 'r.', markersize=3, label='RNN')
     ax2.tick_params(axis='both', which='major', labelsize=20)
     # ax2.legend(fontsize=18)
     # ax2.set_yticks(np.arange(-20, 120, 20))
 
     fig1.tight_layout(pad=1)
-    fig1.savefig('./plot.svg', format='svg', bbox_inches='tight')
+    fig1.savefig(plotpath, format='svg', bbox_inches='tight')
     plt.show()

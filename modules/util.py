@@ -30,7 +30,7 @@ def load_normalization(save_path):
 def print_commandline(parser):
     args = parser.parse_args()
     print('Command line:')
-    print(sys.argv[0], end=' ')
+    print('python '+os.path.basename(sys.argv[0]), end=' ')
     for arg in vars(args):
         print('--' + str(arg) + ' ' + str(getattr(args, arg)), end=' ')
     print()

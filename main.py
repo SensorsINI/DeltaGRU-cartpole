@@ -26,14 +26,14 @@ if __name__ == '__main__':
     parser.add_argument('--pw_len', default=100, type=int, help='Number of future timesteps in the prediction window')
     parser.add_argument('--pw_off', default=1, type=int, help='Offset in #timesteps of the prediction window w.r.t the current timestep')
     parser.add_argument('--seq_len', default=100, type=int, help='Sequence Length')
-    parser.add_argument('--batch_size', default=64, type=int, help='Batch size.')
+    parser.add_argument('--batch_size', default=64, type=int, help='Batch size. How many samples to run forward in parallel before each weight update.')
     parser.add_argument('--num_epochs', default=5, type=int, help='Number of epochs to train for.')
     parser.add_argument('--mode', default=0, type=int, help='Mode 0 - Pretrain on GRU; Mode 1 - Retrain on GRU; Mode 2 - Retrain on DeltaGRU')
     parser.add_argument('--num_rnn_layers', default=2, type=int, help='Number of RNN layers')
     parser.add_argument('--rnn_hid_size', default=128, type=int, help='RNN Hidden layer size')
     parser.add_argument('--lr', default=5e-4, type=float, help='Learning rate')  # 5e-4
     parser.add_argument('--qa', default=0, type=int, help='Whether quantize the network activations')
-    parser.add_argument('--qw', default=1, type=int, help='Whether quantize the network weights')
+    parser.add_argument('--qw', default=0, type=int, help='Whether quantize the network weights')
     parser.add_argument('--aqi', default=8, type=int, help='Number of integer bits before decimal point for activation')
     parser.add_argument('--aqf', default=8, type=int, help='Number of integer bits after decimal point for activation')
     parser.add_argument('--wqi', default=8, type=int, help='Number of integer bits before decimal point for weight')
@@ -114,14 +114,14 @@ if __name__ == '__main__':
         str_net_arch = str(num_rnn_layers) + 'L-' + str(rnn_hid_size) + 'H-'
         str_windows = str(cw_plen) + 'CWP-' + str(cw_flen) + 'CWF-' + str(pw_len) + 'PWL-' + str(pw_off) + 'PWO-'
         filename = str_net_arch + str(rnn_type) + '-' + str_windows + str_target_variable
-        pretrain_model_path = './save/' + filename + str_target_variable + '.pt'
+        pretrain_model_path = './save/' + filename + '.pt'
         logpath = './log/' + filename + '.csv'
         savepath = './save/' + filename + '.pt'
     elif mode == 2:  # Retrain on DeltaGRU
         str_net_arch = str(num_rnn_layers) + 'L-' + str(rnn_hid_size) + 'H-'
         str_windows = str(cw_plen) + 'CWP-' + str(cw_flen) + 'CWF-' + str(pw_len) + 'PWL-' + str(pw_off) + 'PWO-'
         filename = str_net_arch + str(rnn_type) + '-' + str_windows + str_target_variable
-        pretrain_model_path = './save/' + str_net_arch + 'GRU' + '-' + str_windows + str_target_variable + '.pt'
+        pretrain_model_path = './save/' + str_net_arch + 'GRU' + '-' + str_windows + str_target_variable + '.pt' #TODO probably a bug in this filename, has extra parts
         logpath = './log/' + filename + '_' + str(th_x) + '.csv'
         savepath = './save/' + filename + '_' + str(th_x) + '.pt'
 
