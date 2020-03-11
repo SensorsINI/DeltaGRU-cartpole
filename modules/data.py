@@ -50,11 +50,11 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len):
     angle=angle*RAD_PER_ANGLE_ADC
     position = df.positionErr.to_numpy() # same for position
     # project angle onto x and y
-    sinAngle=math.sin(angle)
-    cosAngle=math.cos(angle)
+    sinAngle=np.sin(angle)
+    cosAngle=np.cos(angle)
     # compute temporal derivatives from state data
     averageDeltaT=deltaTimeMs.mean() # TODO this is approximate derivative since sample rate varied a bit around 5ms
-    # TODO consider using a better controlled deriative that enforces e.g. total variation constraint
+    # TODO consider using a better controlled derivative that enforces e.g. total variation constraint
     # dAngle=np.gradient(angle,averageDeltaT)
     # ddAngle = np.gradient(dAngle, edge_order=1)  # same for accelerations
     dCosAngle=np.gradient(cosAngle,averageDeltaT)
@@ -94,20 +94,20 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len):
     all_data = np.vstack(all_data).transpose()
     train_data = np.vstack(train_data).transpose()
 
-    # Collect prediction
-    prediction = []
-    prediction.append(sinAngle)
-    prediction.append(cosAngle)
-    prediction.append(dSinAngle)
-    prediction.append(dCosAngle)
-    prediction.append(position)
-    prediction.append(dPosition)
-    prediction = np.vstack(prediction).transpose()
+    # Collect desired prediction
+    target = []
+    target.append(sinAngle)
+    target.append(cosAngle)
+    target.append(dSinAngle)
+    target.append(dCosAngle)
+    target.append(position)
+    target.append(dPosition)
+    target = np.vstack(target).transpose()
 
     # Get sample
-    test_sample = all_data
+    test_sample = all_data # indexed by [sampleNumber, dataType]
     # print("Test Sample Size: ", ampro_test_sample.shape)
-    train_sample = train_data[1:-1, :]
+    train_sample = train_data[1:-1, :]  # TODO why throw away first and last time point, maybe CSV file incomplete
     # print("Sample Size: ", train_data.shape)
     # print("Train Max: ", np.amax(train_sample))
     # print("Train Min: ", np.amin(train_sample))
@@ -121,26 +121,25 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len):
     print("train_sample size: ", train_sample.shape)
 
     # Split train data
-    train_data_len = train_sample.shape[0]
+    numSamples = train_sample.shape[0]
 
     data_new = []
-    prediction_new = []
+    target_new = []
     # Iterate from the current timestep to the last timestep that gives the last prediction window
-    for i in range(cw_plen, train_data_len - max(cw_flen, pw_len+pw_off) - seq_len):
+    for i in range(cw_plen, numSamples - max(cw_flen, pw_len+pw_off) - seq_len):
         data_seq = []
         label_seq = []
         for t in range(0, seq_len):
             data_seq.append(train_sample[i+t-cw_plen:i+t+cw_flen+1, :].ravel())
-            label_seq.append(prediction[i+t+pw_off:i+t+pw_off+pw_len, :].ravel())
+            label_seq.append(target[i+t+pw_off:i+t+pw_off+pw_len, :].ravel())
         data_seq = np.stack(data_seq, axis=0)
         label_seq = np.stack(label_seq, axis=0)
         data_new.append(data_seq)
-        prediction_new.append(label_seq)
-    data_new = np.stack(data_new, axis=0)
-    prediction_new = np.stack(prediction_new, axis=0)
-
+        target_new.append(label_seq)
+    data_new = np.stack(data_new, axis=0) # indexed by [sample, sequence, # sensor inputs * cw_len]
+    target_new = np.stack(target_new, axis=0) # [sample, sequence, # output sensor values * pw_len]
 
     print("data_new size: ", data_new.shape)
-    print("prediction_new size: ", prediction_new.shape)
+    print("target_new size: ", target_new.shape)
 
-    return test_sample, data_new, prediction_new
+    return test_sample, data_new, target_new

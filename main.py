@@ -21,14 +21,14 @@ from modules.deltarnn import get_temporal_sparsity
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train a GRU network.')
     parser.add_argument('--seed', default=1, type=int, help='Initialize the random seed of the run (for reproducibility).')
-    parser.add_argument('--cw_plen', default=1, type=int, help='Number of previous timesteps in the context window, leads to initial latency')
+    parser.add_argument('--cw_plen', default=5, type=int, help='Number of previous timesteps in the context window, leads to initial latency')
     parser.add_argument('--cw_flen', default=0, type=int, help='Number of future timesteps in the context window, leads to consistent latency')
-    parser.add_argument('--pw_len', default=100, type=int, help='Number of future timesteps in the prediction window')
+    parser.add_argument('--pw_len', default=20, type=int, help='Number of future timesteps in the prediction window')
     parser.add_argument('--pw_off', default=1, type=int, help='Offset in #timesteps of the prediction window w.r.t the current timestep')
-    parser.add_argument('--seq_len', default=100, type=int, help='Sequence Length')
+    parser.add_argument('--seq_len', default=100, type=int, help='Sequence Length for BPTT training; samples are drawn with this length randomly throughout training set')
     parser.add_argument('--batch_size', default=64, type=int, help='Batch size. How many samples to run forward in parallel before each weight update.')
     parser.add_argument('--num_epochs', default=5, type=int, help='Number of epochs to train for.')
-    parser.add_argument('--mode', default=0, type=int, help='Mode 0 - Pretrain on GRU; Mode 1 - Retrain on GRU; Mode 2 - Retrain on DeltaGRU')
+    parser.add_argument('--mode', default=1, type=int, help='Mode 0 - Pretrain on GRU; Mode 1 - Retrain on GRU; Mode 2 - Retrain on DeltaGRU')
     parser.add_argument('--num_rnn_layers', default=2, type=int, help='Number of RNN layers')
     parser.add_argument('--rnn_hid_size', default=128, type=int, help='RNN Hidden layer size')
     parser.add_argument('--lr', default=5e-4, type=float, help='Learning rate')  # 5e-4

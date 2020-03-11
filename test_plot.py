@@ -15,9 +15,9 @@ from torch.utils import data
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train a GRU network.')
     parser.add_argument('--seed', default=1, type=int, help='Initialize the random seed of the run (for reproducibility).')
-    parser.add_argument('--cw_plen', default=20, type=int, help='Number of previous timesteps in the context window, leads to initial latency')
+    parser.add_argument('--cw_plen', default=5, type=int, help='Number of previous timesteps in the context window, leads to initial latency')
     parser.add_argument('--cw_flen', default=0, type=int, help='Number of future timesteps in the context window, leads to consistent latency')
-    parser.add_argument('--pw_len', default=5, type=int, help='Number of future timesteps in the prediction window')
+    parser.add_argument('--pw_len', default=20, type=int, help='Number of future timesteps in the prediction window')
     parser.add_argument('--pw_off', default=1, type=int, help='Offset in #timesteps of the prediction window w.r.t the current timestep')
     parser.add_argument('--pw_idx', default=1, type=int, help='Index of timestep in the prediction window to show in plots')
     parser.add_argument('--seq_len', default=100, type=int, help='Sequence Length')
@@ -180,17 +180,17 @@ if __name__ == '__main__':
     ########################################################################
     # Evaluation
     ########################################################################
-    test_data = test_data[start_test_tstep:start_test_tstep + num_test_tstep, 0, :].unsqueeze(1) # raw data
-    test_data = test_data.transpose(0, 1)
+    test_data = test_data[start_test_tstep:start_test_tstep + num_test_tstep, 0, :].unsqueeze(1) # raw data, unsqueeze keeps as 3d
+    test_data = test_data.transpose(0, 1) # put seq len as first, sample as 2nd, to normalization
     test_data_norm = (test_data - mean_train_data) / std_train_data # to input to RNN for prediction
 
     # Get corresponding actual series
     test_actual = test_labels[start_test_tstep:start_test_tstep + num_test_tstep, :, :].squeeze().numpy() # the actual output we will compare with
 
     # Run trained network
-    net = net.eval()
+    net = net.eval() # set to eval mode
     test_sample_norm = test_data_norm.cuda()
-    test_sample_norm = quantizeTensor(test_sample_norm, aqi, aqf, 1)
+    # test_sample_norm = quantizeTensor(test_sample_norm, aqi, aqf, 1) # TODO add check for quantization
     test_sample_norm = test_sample_norm.transpose(0, 1)
     pred_series, pred_point, _ = net(test_sample_norm)
 
@@ -214,7 +214,7 @@ if __name__ == '__main__':
     #          'ytick.labelsize':'x-large'}
     # pylab.rcParams.update(params)
 
-    pred_series = pred_series.cpu().detach().numpy()
+    pred_series = pred_series.squeeze().cpu().detach().numpy() # [sample, state]
 
     # Select Plot Range
     y_actual = test_labels[start_test_tstep:start_test_tstep + num_test_tstep, 0, :]
@@ -222,11 +222,12 @@ if __name__ == '__main__':
 
     # Draw a plot of RNN input and output
     # sample_rate = 200  # 200 Hz
-    x_actual = np.arange(0, num_test_tstep)
-    x_pred = np.arange(pw_idx, pw_idx+num_test_tstep)
+    t_actual = np.arange(0, num_test_tstep)
+    t_pred = np.arange(pw_idx, pw_idx + num_test_tstep)
 
     # compute angle from sin and cos
-    angle_actual = np.arctan2(y_actual[])
+    angle_actual = test_data[:,0,0] #np.arctan2(y_actual[:,0],y_actual[:,1])
+    angle_pred=np.arctan2(y_pred[:,0],y_pred[:,1])
 
     # Plot angle error
     fig1, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 8))
@@ -234,10 +235,12 @@ if __name__ == '__main__':
     # ax3.title.set_text('torque_desired_ankle')
     # ax3.set_ylabel("$\\tau_{da} (kg\cdot m^{2}\cdot s^{-2})$", fontsize=24)
     ax1.set_title('(a)', fontsize=24)
-    ax1.set_ylabel("angle err (ADC)", fontsize=24)
+    ax1.set_ylabel("angle err (rad)", fontsize=24)
     ax1.set_xlabel('Time (samples, 200/s)', fontsize=24)
-    ax1.plot(x_actual, test_actual[:, 0, pw_idx*2], 'k.', markersize=12, label='Ground Truth')
-    ax1.plot(x_pred, pred_series[0, :, pw_idx*2], 'r.', markersize=3, label='RNN')
+    ax1.plot(t_actual, angle_actual, 'k.', markersize=12, label='Ground Truth')
+    ax1.plot(t_pred, angle_pred, 'r.', markersize=3, label='RNN')
+    # ax1.plot(x_actual, test_actual[:, 0, pw_idx*2], 'k.', markersize=12, label='Ground Truth')
+    # ax1.plot(x_pred, pred_series[0, :, pw_idx*2], 'r.', markersize=3, label='RNN')
     ax1.tick_params(axis='both', which='major', labelsize=20)
     # ax3.set_yticks(np.arange(0, 36, 5))
     ax1.legend(fontsize=18)
@@ -246,8 +249,8 @@ if __name__ == '__main__':
     ax2.set_title('(b)', fontsize=24)
     ax2.set_ylabel("position err (enc)", fontsize=24)
     ax2.set_xlabel('Time', fontsize=24)
-    ax2.plot(x_actual, test_actual[:, 0, pw_idx*2+4], 'k.', markersize=12, label='Ground Truth')
-    ax2.plot(x_pred, pred_series[0, :, pw_idx*2+1], 'r.', markersize=3, label='RNN')
+    ax2.plot(t_actual, test_actual[:, 0, pw_idx * 2 + 4], 'k.', markersize=12, label='Ground Truth')
+    ax2.plot(t_pred, pred_series[0, :, pw_idx * 2 + 1], 'r.', markersize=3, label='RNN')
     ax2.tick_params(axis='both', which='major', labelsize=20)
     # ax2.legend(fontsize=18)
     # ax2.set_yticks(np.arange(-20, 120, 20))
