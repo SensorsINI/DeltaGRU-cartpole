@@ -17,9 +17,15 @@ from modules.log import write_log, write_log_header
 from modules.data import load_data, Dataset
 from modules.deltarnn import get_temporal_sparsity
 
+TRAIN_FILE_DEFAULT='data/cartpole-2020-03-09-14-43-54 stock motor PD control w dance and steps.csv'
+VAL_FILE_DEFAULT='data/cartpole-2020-03-09-14-21-24 stock motor PD angle zero correct.csv'
+TEST_FILE_DEFAULT='data/cartpole-2020-03-09-14-24-21 stock motor PD with dance.csv'
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train a GRU network.')
+    parser.add_argument('--train_file', default=TRAIN_FILE_DEFAULT, type=str,help='Training dataset file')
+    parser.add_argument('--val_file', default=VAL_FILE_DEFAULT, type=str,help='Validation dataset file')
+    parser.add_argument('--test_file', default=TEST_FILE_DEFAULT, type=str,help='Testing dataset file')
     parser.add_argument('--seed', default=1, type=int, help='Initialize the random seed of the run (for reproducibility).')
     parser.add_argument('--cw_plen', default=5, type=int, help='Number of previous timesteps in the context window, leads to initial latency')
     parser.add_argument('--cw_flen', default=0, type=int, help='Number of future timesteps in the context window, leads to consistent latency')
@@ -69,6 +75,9 @@ if __name__ == '__main__':
     batch_size = args.batch_size      # Mini-batch size
     num_epochs = args.num_epochs      # Number of epoches to train the network
     mode = args.mode
+    train_file=args.train_file
+    val_file=args.val_file
+    test_file=args.test_file
 
     print('###################################################################################\n\r'
           '# Hyperparameters\n\r'
@@ -99,7 +108,6 @@ if __name__ == '__main__':
     aqf = args.aqf
     wqi = args.wqi
     wqf = args.wqf
-
     # Save and Log
     str_target_variable = 'cart-pole'
     save_path={}
@@ -129,11 +137,11 @@ if __name__ == '__main__':
     ########################################################
     # Create Dataset
     ########################################################
-    _, data_1, labels_1 = load_data('data/cartpole-2020-03-09-14-43-54 stock motor PD control w dance and steps.csv',
+    _, data_1, labels_1 = load_data(train_file,
                                     cw_plen, cw_flen, pw_len, pw_off, seq_len)
-    _, data_2, labels_2 = load_data('data/cartpole-2020-03-09-14-21-24 stock motor PD angle zero correct.csv', cw_plen,
+    _, data_2, labels_2 = load_data(val_file, cw_plen,
                                     cw_flen, pw_len, pw_off, seq_len)
-    _, data_3, labels_3 = load_data('data/cartpole-2020-03-09-14-24-21 stock motor PD with dance.csv', cw_plen, cw_flen,
+    _, data_3, labels_3 = load_data(test_file, cw_plen, cw_flen,
                                     pw_len, pw_off, seq_len)
 
     train_ampro_data = data_1 #np.concatenate((data_1), axis=0) # if only one file, then don't concatenate, it kills an axis

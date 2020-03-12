@@ -32,7 +32,7 @@ def print_commandline(parser):
     print('Command line:')
     print('python '+os.path.basename(sys.argv[0]), end=' ')
     for arg in vars(args):
-        print('--' + str(arg) + ' ' + str(getattr(args, arg)), end=' ')
+        print('--' + str(arg) + ' "' + str(getattr(args, arg))+'"', end=' ')
     print()
 
 
