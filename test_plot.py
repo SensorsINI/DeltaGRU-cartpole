@@ -7,7 +7,7 @@ import torch.utils.data.dataloader
 import numpy as np
 import random as rnd
 from modules.util import quantizeTensor, print_commandline, load_normalization
-from modules.data import load_data, Dataset
+from modules.data import load_data, Dataset, RAD_PER_ANGLE_ADC
 import matplotlib.pyplot as plt
 from torch.utils import data
 # import matplotlib.pylab as pylab
@@ -34,6 +34,11 @@ if __name__ == '__main__':
     parser.add_argument('--wqf', default=8, type=int, help='Number of integer bits after decimal point for weight')
     parser.add_argument('--th_x', default=64/256, type=float, help='Delta threshold for inputs')
     parser.add_argument('--th_h', default=64/256, type=float, help='Delta threshold for hidden states')
+    # below ignored, added to allow running with same args as training
+    parser.add_argument('--batch_size', default=64, type=int, help='(ignored) Batch size. How many samples to run forward in parallel before each weight update.')
+    parser.add_argument('--num_epochs', default=5, type=int, help='(ignored) Number of epochs to train for.')
+    parser.add_argument('--mode', default=1, type=int, help='(ignored) Mode 0 - Pretrain on GRU; Mode 1 - Retrain on GRU; Mode 2 - Retrain on DeltaGRU')
+    parser.add_argument('--lr', default=5e-4, type=float, help='(ignored) Learning rate')  # 5e-4
     args = parser.parse_args()
 
     # print command line (maybe to use in a script)
@@ -171,7 +176,6 @@ if __name__ == '__main__':
     ########################################################
     ########################################################
 
-    # Epoch loop
     print("Starting inference...")
 
     # Timer
@@ -191,8 +195,8 @@ if __name__ == '__main__':
     net = net.eval() # set to eval mode
     test_sample_norm = test_data_norm.cuda()
     # test_sample_norm = quantizeTensor(test_sample_norm, aqi, aqf, 1) # TODO add check for quantization
-    test_sample_norm = test_sample_norm.transpose(0, 1)
-    pred_series, pred_point, _ = net(test_sample_norm)
+    test_sample_norm = test_sample_norm.transpose(0, 1) # flip for input to RNN
+    pred_series, pred_point, _ = net(test_sample_norm) # run samples through RNN, results in
 
     print('###################################################################################\n\r'
           '# Evaluation Information\n\r'
@@ -200,7 +204,7 @@ if __name__ == '__main__':
 
     print("Test Sample Size:      ", test_sample_norm.size())
     print("Test Output Size:      ", pred_series.size())
-    print("Test Prediction Size:  ", test_actual.shape)
+    print("Test Real Data Size:  ", test_actual.shape)
 
     ########################################################################
     # Plot Test Results
@@ -226,8 +230,8 @@ if __name__ == '__main__':
     t_pred = np.arange(pw_idx, pw_idx + num_test_tstep)
 
     # compute angle from sin and cos
-    angle_actual = test_data[:,0,0] #np.arctan2(y_actual[:,0],y_actual[:,1])
-    angle_pred=np.arctan2(y_pred[:,0],y_pred[:,1])
+    angle_actual = test_data[:,0,0] # should already be in radians
+    angle_pred=np.arctan2(y_pred[:,0],y_pred[:,1]) # sin, cos to rad
 
     # Plot angle error
     fig1, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 8))
