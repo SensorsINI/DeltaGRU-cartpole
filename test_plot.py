@@ -9,11 +9,15 @@ import random as rnd
 from modules.util import quantizeTensor, print_commandline, load_normalization
 from modules.data import load_data, Dataset, RAD_PER_ANGLE_ADC
 import matplotlib.pyplot as plt
+import main
 from torch.utils import data
 # import matplotlib.pylab as pylab
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train a GRU network.')
+    parser.add_argument('--train_file', default=main.TRAIN_FILE_DEFAULT, type=str,help='(ignored) Training dataset file')
+    parser.add_argument('--val_file', default=main.VAL_FILE_DEFAULT, type=str,help='(ignored) Validation dataset file')
+    parser.add_argument('--test_file', default=main.TEST_FILE_DEFAULT, type=str,help='Testing dataset file')
     parser.add_argument('--seed', default=1, type=int, help='Initialize the random seed of the run (for reproducibility).')
     parser.add_argument('--cw_plen', default=5, type=int, help='Number of previous timesteps in the context window, leads to initial latency')
     parser.add_argument('--cw_flen', default=0, type=int, help='Number of future timesteps in the context window, leads to consistent latency')
@@ -59,6 +63,7 @@ if __name__ == '__main__':
     pw_off = args.pw_off  # Length of future in timesteps to predict
     pw_idx = args.pw_idx  # Index of timestep in the prediction window
     seq_len = args.seq_len  # Sequence length
+    test_file=args.test_file
 
     # Plot Settings
     start_test_tstep = args.start_test_tstep
@@ -94,20 +99,11 @@ if __name__ == '__main__':
     ########################################################
     # Create Dataset
     ########################################################
-    # _, data_1, labels_1 = load_data('data/cartpole-2020-03-09-14-43-54 stock motor PD control w dance and steps.csv', cw_plen, cw_flen, pw_len, pw_off, seq_len)
-    # _, data_2, labels_2 = load_data('data/cartpole-2020-03-09-14-21-24 stock motor PD angle zero correct.csv', cw_plen, cw_flen, pw_len, pw_off, seq_len)
-    _, data_3, labels_3 = load_data('data/cartpole-2020-03-09-14-24-21 stock motor PD with dance.csv', cw_plen, cw_flen, pw_len, pw_off, seq_len)
-
-    # train_ampro_data = data_1 #np.concatenate((data_1), axis=0) # if only one file, then don't concatenate, it kills an axis
-    # train_ampro_labels = labels_1 #np.concatenate((labels_1), axis=0)
-    test_ampro_data = data_3
-    test_ampro_labels = labels_3
+    _, test_data, test_labels = load_data(test_file, cw_plen, cw_flen, pw_len, pw_off, seq_len)
 
     # Convert data to PyTorch Tensors
-    # train_data = torch.Tensor(train_ampro_data).float()
-    # train_labels = torch.Tensor(train_ampro_labels).float()
-    test_data = torch.Tensor(test_ampro_data).float()  # the raw sensor and control data
-    test_labels = torch.Tensor(test_ampro_labels).float() # what we want to predict (the sensor data into the future)
+    test_data = torch.Tensor(test_data).float()  # the raw sensor and control data
+    test_labels = torch.Tensor(test_labels).float() # what we want to predict (the sensor data into the future)
 
     # Get Mean and Std of Train Data78/-
     mean_train_data, std_train_data=load_normalization(savepath) # we need to unnormalize the predictions to get the predictions in input units
