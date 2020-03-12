@@ -218,7 +218,6 @@ if __name__ == '__main__':
 
     # Select Plot Range
     y_actual = test_labels[start_test_tstep:start_test_tstep + num_test_tstep, 0, :]
-    y_pred = pred_series
 
     # Draw a plot of RNN input and output
     # sample_rate = 200  # 200 Hz
@@ -226,8 +225,11 @@ if __name__ == '__main__':
     t_pred = np.arange(pw_idx, pw_idx + num_test_tstep)
 
     # compute angle from sin and cos
-    angle_actual = test_data[:,0,0] # should already be in radians
-    angle_pred=np.arctan2(y_pred[:,0],y_pred[:,1]) # sin, cos to rad
+    angle_actual = test_data[0,:,0] # should already be in radians [1,sample,pw_len*sensors]
+    angle_pred=np.arctan2(pred_series[:,0],pred_series[:,1]) # sin, cos to rad
+
+    pos_actual=test_actual[0,:,7]
+    pos_pred=pred_series[:,7]  # TODO must be wrong, also needs to be unnormalized
 
     # Plot angle error
     fig1, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 8))
@@ -249,8 +251,8 @@ if __name__ == '__main__':
     ax2.set_title('(b)', fontsize=24)
     ax2.set_ylabel("position err (enc)", fontsize=24)
     ax2.set_xlabel('Time', fontsize=24)
-    ax2.plot(t_actual, test_actual[:, 0, pw_idx * 2 + 4], 'k.', markersize=12, label='Ground Truth')
-    ax2.plot(t_pred, pred_series[0, :, pw_idx * 2 + 1], 'r.', markersize=3, label='RNN')
+    ax2.plot(t_actual,pos_actual , 'k.', markersize=12, label='Ground Truth')
+    ax2.plot(t_pred, pos_pred, 'r.', markersize=3, label='RNN')
     ax2.tick_params(axis='both', which='major', labelsize=20)
     # ax2.legend(fontsize=18)
     # ax2.set_yticks(np.arange(-20, 120, 20))
