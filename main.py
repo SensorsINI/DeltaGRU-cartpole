@@ -2,6 +2,7 @@ import os
 import sys
 import collections
 import argparse
+import math
 import time
 import torch as t
 import torch.nn as nn
@@ -21,17 +22,18 @@ from modules.deltarnn import get_temporal_sparsity
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train a GRU network.')
     parser.add_argument('--seed', default=1, type=int, help='Initialize the random seed of the run (for reproducibility).')
-    parser.add_argument('--cw_plen', default=5, type=int, help='Number of previous timesteps in the context window, leads to initial latency')
+    parser.add_argument('--stride', default=1, type=int, help='Stride for time series data slice window')
+    parser.add_argument('--cw_plen', default=100, type=int, help='Number of previous timesteps in the context window, leads to initial latency')
     parser.add_argument('--cw_flen', default=0, type=int, help='Number of future timesteps in the context window, leads to consistent latency')
-    parser.add_argument('--pw_len', default=20, type=int, help='Number of future timesteps in the prediction window')
+    parser.add_argument('--pw_len', default=100, type=int, help='Number of future timesteps in the prediction window')
     parser.add_argument('--pw_off', default=1, type=int, help='Offset in #timesteps of the prediction window w.r.t the current timestep')
-    parser.add_argument('--seq_len', default=100, type=int, help='Sequence Length for BPTT training; samples are drawn with this length randomly throughout training set')
-    parser.add_argument('--batch_size', default=64, type=int, help='Batch size. How many samples to run forward in parallel before each weight update.')
-    parser.add_argument('--num_epochs', default=5, type=int, help='Number of epochs to train for.')
-    parser.add_argument('--mode', default=1, type=int, help='Mode 0 - Pretrain on GRU; Mode 1 - Retrain on GRU; Mode 2 - Retrain on DeltaGRU')
+    parser.add_argument('--seq_len', default=32, type=int, help='Sequence Length for BPTT training; samples are drawn with this length randomly throughout training set')
+    parser.add_argument('--batch_size', default=32, type=int, help='Batch size. How many samples to run forward in parallel before each weight update.')
+    parser.add_argument('--num_epochs', default=10, type=int, help='Number of epochs to train for.')
+    parser.add_argument('--mode', default=0, type=int, help='Mode 0 - Pretrain on GRU; Mode 1 - Retrain on GRU; Mode 2 - Retrain on DeltaGRU')
     parser.add_argument('--num_rnn_layers', default=2, type=int, help='Number of RNN layers')
-    parser.add_argument('--rnn_hid_size', default=128, type=int, help='RNN Hidden layer size')
-    parser.add_argument('--lr', default=5e-4, type=float, help='Learning rate')  # 5e-4
+    parser.add_argument('--rnn_hid_size', default=512, type=int, help='RNN Hidden layer size')
+    parser.add_argument('--lr', default=1e-4, type=float, help='Learning rate')  # 5e-4
     parser.add_argument('--qa', default=0, type=int, help='Whether quantize the network activations')
     parser.add_argument('--qw', default=0, type=int, help='Whether quantize the network weights')
     parser.add_argument('--aqi', default=8, type=int, help='Number of integer bits before decimal point for activation')
@@ -60,6 +62,7 @@ if __name__ == '__main__':
     torch.backends.cudnn.deterministic = True
 
     # Hyperparameters
+    stride = args.stride
     cw_plen = args.cw_plen            # Length of history in timesteps used to train the network
     cw_flen = args.cw_flen            # Length of future in timesteps to predict
     pw_len = args.pw_len              # Offset of future in timesteps to predict
@@ -69,6 +72,8 @@ if __name__ == '__main__':
     batch_size = args.batch_size      # Mini-batch size
     num_epochs = args.num_epochs      # Number of epoches to train the network
     mode = args.mode
+    qa = args.qa
+    qw = args.qw
 
     print('###################################################################################\n\r'
           '# Hyperparameters\n\r'
@@ -130,11 +135,11 @@ if __name__ == '__main__':
     # Create Dataset
     ########################################################
     _, data_1, labels_1 = load_data('data/cartpole-2020-03-09-14-43-54 stock motor PD control w dance and steps.csv',
-                                    cw_plen, cw_flen, pw_len, pw_off, seq_len)
+                                    cw_plen, cw_flen, pw_len, pw_off, seq_len, stride)
     _, data_2, labels_2 = load_data('data/cartpole-2020-03-09-14-21-24 stock motor PD angle zero correct.csv', cw_plen,
-                                    cw_flen, pw_len, pw_off, seq_len)
+                                    cw_flen, pw_len, pw_off, seq_len, stride)
     _, data_3, labels_3 = load_data('data/cartpole-2020-03-09-14-24-21 stock motor PD with dance.csv', cw_plen, cw_flen,
-                                    pw_len, pw_off, seq_len)
+                                    pw_len, pw_off, seq_len, stride)
 
     train_ampro_data = data_1 #np.concatenate((data_1), axis=0) # if only one file, then don't concatenate, it kills an axis
     train_ampro_labels = labels_1 #np.concatenate((labels_1), axis=0)
@@ -198,18 +203,23 @@ if __name__ == '__main__':
     print("Test data size:   ", dev_data_norm.size())
     print("Test label size:  ", dev_labels.size())
     print("\n\r")
+    # Data Range
+    angle_min = 0
+    angle_max = 2 * math.pi
+    position_min = -655
+    position_max = 1644
 
     print('###################################################################################\n\r'
           '# Network\n\r'
           '###################################################################################')
     # Network Dimension
     rnn_inp_size = train_data_norm.size(-1)
-    print("rnn_inp_size = ", rnn_inp_size)
-    print("rnn_hid_size = ", rnn_hid_size)
-    print("num_rnn_layers = ", num_rnn_layers)
-    print("num_classes  = ", num_classes)
-    print("th_x  = ", th_x)
-    print("th_h  = ", th_h)
+    print("rnn_inp_size             = ", rnn_inp_size)
+    print("rnn_hid_size             = ", rnn_hid_size)
+    print("num_rnn_layers           = ", num_rnn_layers)
+    print("num_classes              = ", num_classes)
+    print("th_x                     = ", th_x)
+    print("th_h                     = ", th_h)
     print("Activation Integer  Bits = ", aqi)
     print("Activation Fraction Bits = ", aqf)
     print("Weight     Integer  Bits = ", wqi)
@@ -316,7 +326,7 @@ if __name__ == '__main__':
             # Move data to GPU
             batch = batch.float().cuda().transpose(0, 1)
             labels = labels.float().cuda()
-            batch = quantizeTensor(batch, aqi, aqf, 1)
+            batch = quantizeTensor(batch, aqi, aqf, qa)
 
             # Optimization
             optimizer.zero_grad()
@@ -332,14 +342,14 @@ if __name__ == '__main__':
             loss.backward()
 
             # Gradient clipping
-            torch.nn.utils.clip_grad_norm_(net.parameters(), 200)
+            torch.nn.utils.clip_grad_norm_(net.parameters(), 100)
 
             # Update parameters
             optimizer.step()
 
             # Increment monitoring variables
             batch_loss = loss.detach()
-            train_loss += batch_loss  # Accumulate loss
+            train_loss += batch_loss  # Accumulate loss2
             train_batches += 1  # Accumulate count so we can calculate mean later
 
         # Quantize the RNN weights after every epoch
@@ -369,7 +379,7 @@ if __name__ == '__main__':
             # Move data to GPU
             batch = batch.float().cuda().transpose(0, 1)
             labels = labels.float().cuda()
-            batch = quantizeTensor(batch, aqi, aqf, 1)
+            batch = quantizeTensor(batch, aqi, aqf, qa)
 
             # Forward propagation
             # GRU Input size must be (look_back_len, batch, input_size)
@@ -400,7 +410,7 @@ if __name__ == '__main__':
             # Move data to GPU
             batch = batch.float().cuda().transpose(0, 1)
             labels = labels.float().cuda()
-            batch = quantizeTensor(batch, aqi, aqf, 1)
+            batch = quantizeTensor(batch, aqi, aqf, qa)
 
             # Forward propagation
             if "Delta" in rnn_type:
@@ -466,7 +476,7 @@ if __name__ == '__main__':
 
         print('Epoch: %3d of %3d | '
               'Time: %s | '
-              'LR: %1.8f | '
+              'LR: %1.5f | '
               'Train-L: %6.4f | '
               'Val-L: %6.4f | '
               'Val-Gain: %3.2f |'
