@@ -30,7 +30,7 @@ class Dataset(data.Dataset):
         return X, y
 
 
-def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len):
+def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1):
 
 
     # Load dataframe
@@ -45,9 +45,10 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len):
     time=df.time.to_numpy()
     deltaTimeMs=df.deltaTimeMs.to_numpy()
 
+    # Get Raw Data
     angle = df.angleErr.to_numpy() # simplify the angle to just angle error, so it is zero centered around presumed vertical position
     # desired vertical angle might be incorrectly set, resulting in large position offset that balances position and angle control
-    angle=angle*RAD_PER_ANGLE_ADC
+    angle = angle*RAD_PER_ANGLE_ADC
     position = df.positionErr.to_numpy() # same for position
     # project angle onto x and y
     sinAngle=np.sin(angle)
@@ -56,16 +57,34 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len):
     averageDeltaT=deltaTimeMs.mean() # TODO this is approximate derivative since sample rate varied a bit around 5ms
     # TODO consider using a better controlled derivative that enforces e.g. total variation constraint
     # dAngle=np.gradient(angle,averageDeltaT)
-    # ddAngle = np.gradient(dAngle, edge_order=1)  # same for accelerations
-    dCosAngle=np.gradient(cosAngle,averageDeltaT)
-    dSinAngle=np.gradient(sinAngle,averageDeltaT)
+    actualMotorCmd = df.actualMotorCmd.to_numpy() # zero-centered motor speed command
+    
+
+    
+    # Min-Max Normalize
+    def normalize_min_max(x, x_min, x_max):
+        return (x - x_min)/(x_max - x_min)
+    angle_min = np.amin(angle)
+    angle_max = np.amax(angle)
+    angle = normalize_min_max(angle, angle_min, angle_max)
+    position_min = np.amin(position)
+    position_max = np.amax(position)
+    position = normalize_min_max(position, position_min, position_max)
+    actualMotorCmd_min = np.amin(actualMotorCmd)
+    actualMotorCmd_max = np.amax(actualMotorCmd)
+    actualMotorCmd = normalize_min_max(actualMotorCmd, actualMotorCmd_min, actualMotorCmd_max)
+    
+    # Derive Other Data
+    dAngle = np.gradient(angle,averageDeltaT)
+    ddAngle = np.gradient(dAngle, edge_order=1)  # same for accelerations
+    dCosAngle = np.gradient(cosAngle,averageDeltaT)
+    dSinAngle = np.gradient(sinAngle,averageDeltaT)
     ddCosAngle = np.gradient(dCosAngle, averageDeltaT)
     ddSinAngle = np.gradient(dSinAngle, averageDeltaT)
     dPosition = np.gradient(position, averageDeltaT)
     ddPosition = np.gradient(dPosition, edge_order=1)
-    actualMotorCmd = df.actualMotorCmd.to_numpy() # zero-centered motor speed command
 
-     # Data
+    # Data
     all_data.append(time)
     all_data.append(sinAngle)
     all_data.append(cosAngle)
@@ -80,12 +99,14 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len):
 
     # Train Data
     train_data.append(angle)
-    train_data.append(sinAngle)
-    train_data.append(cosAngle)
-    train_data.append(dSinAngle)
-    train_data.append(dCosAngle)
-    train_data.append(ddSinAngle)
-    train_data.append(ddCosAngle)
+    train_data.append(dAngle)
+    train_data.append(ddAngle)
+    # train_data.append(sinAngle)
+    # train_data.append(cosAngle)
+    # train_data.append(dSinAngle)
+    # train_data.append(dCosAngle)
+    # train_data.append(ddSinAngle)
+    # train_data.append(ddCosAngle)
     train_data.append(position)
     train_data.append(dPosition)
     train_data.append(ddPosition)
@@ -94,14 +115,19 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len):
     all_data = np.vstack(all_data).transpose()
     train_data = np.vstack(train_data).transpose()
 
+    # Normalize Label
+
+
     # Collect desired prediction
     target = []
-    target.append(sinAngle)
-    target.append(cosAngle)
-    target.append(dSinAngle)
-    target.append(dCosAngle)
+    # target.append(sinAngle)
+    # target.append(cosAngle)
+    # target.append(dSinAngle)
+    # target.append(dCosAngle)
+    target.append(angle)
+    # target.append(dAngle)
     target.append(position)
-    target.append(dPosition)
+    # target.append(dPosition)
     target = np.vstack(target).transpose()
 
     # Get sample
@@ -127,6 +153,8 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len):
     target_new = []
     # Iterate from the current timestep to the last timestep that gives the last prediction window
     for i in range(cw_plen, numSamples - max(cw_flen, pw_len+pw_off) - seq_len):
+        if i % stride is not 0:
+            continue
         data_seq = []
         label_seq = []
         for t in range(0, seq_len):
@@ -141,5 +169,9 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len):
 
     print("data_new size: ", data_new.shape)
     print("target_new size: ", target_new.shape)
+    print("Postion Min: ", position_min)
+    print("Postion Min: ", position_max)
+    print("Angle Min:   ", angle_min)
+    print("Angle Max:   ", angle_max)
 
     return test_sample, data_new, target_new
