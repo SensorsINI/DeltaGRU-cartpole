@@ -65,8 +65,8 @@ if __name__ == '__main__':
     test_file=args.test_file
 
     # Plot Settings
-    start_test_tstep = args.start_test_tstep
-    num_test_tstep = args.num_test_tstep
+    # start_test_tstep = args.start_test_tstep
+    # num_test_tstep = args.num_test_tstep
     plot_len = args.plot_len # Number of timesteps in the plot window
 
     # Whether test retrain model
