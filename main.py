@@ -29,16 +29,16 @@ if __name__ == '__main__':
     parser.add_argument('--test_file', default=TEST_FILE_DEFAULT, type=str,help='Testing dataset file')
     parser.add_argument('--seed', default=1, type=int, help='Initialize the random seed of the run (for reproducibility).')
     parser.add_argument('--stride', default=1, type=int, help='Stride for time series data slice window')
-    parser.add_argument('--cw_plen', default=100, type=int, help='Number of previous timesteps in the context window, leads to initial latency')
+    parser.add_argument('--cw_plen', default=10, type=int, help='Number of previous timesteps in the context window, leads to initial latency')
     parser.add_argument('--cw_flen', default=0, type=int, help='Number of future timesteps in the context window, leads to consistent latency')
-    parser.add_argument('--pw_len', default=100, type=int, help='Number of future timesteps in the prediction window')
+    parser.add_argument('--pw_len', default=10, type=int, help='Number of future timesteps in the prediction window')
     parser.add_argument('--pw_off', default=1, type=int, help='Offset in #timesteps of the prediction window w.r.t the current timestep')
     parser.add_argument('--seq_len', default=32, type=int, help='Sequence Length for BPTT training; samples are drawn with this length randomly throughout training set')
     parser.add_argument('--batch_size', default=32, type=int, help='Batch size. How many samples to run forward in parallel before each weight update.')
     parser.add_argument('--num_epochs', default=10, type=int, help='Number of epochs to train for.')
     parser.add_argument('--mode', default=0, type=int, help='Mode 0 - Pretrain on GRU; Mode 1 - Retrain on GRU; Mode 2 - Retrain on DeltaGRU')
     parser.add_argument('--num_rnn_layers', default=2, type=int, help='Number of RNN layers')
-    parser.add_argument('--rnn_hid_size', default=512, type=int, help='RNN Hidden layer size')
+    parser.add_argument('--rnn_hid_size', default=32, type=int, help='RNN Hidden layer size')
     parser.add_argument('--lr', default=1e-4, type=float, help='Learning rate')  # 5e-4
     parser.add_argument('--qa', default=0, type=int, help='Whether quantize the network activations')
     parser.add_argument('--qw', default=0, type=int, help='Whether quantize the network weights')
@@ -142,37 +142,13 @@ if __name__ == '__main__':
     ########################################################
     # Create Dataset
     ########################################################
-    _, data_1, labels_1 = load_data(train_file,
-                                    cw_plen, cw_flen, pw_len, pw_off, seq_len)
-    _, data_2, labels_2 = load_data(val_file, cw_plen,
-                                    cw_flen, pw_len, pw_off, seq_len)
-    _, data_3, labels_3 = load_data(test_file, cw_plen, cw_flen,
-                                    pw_len, pw_off, seq_len)
+    train_data, train_labels, train_mean, train_std, label_mean, label_std  = load_data(train_file, cw_plen, cw_flen, pw_len, pw_off, seq_len)
+    dev_data, dev_labels = load_data(val_file, cw_plen, cw_flen, pw_len, pw_off, seq_len)
+    test_data, test_labels = load_data(test_file, cw_plen, cw_flen, pw_len, pw_off, seq_len)
 
-    train_ampro_data = data_1 #np.concatenate((data_1), axis=0) # if only one file, then don't concatenate, it kills an axis
-    train_ampro_labels = labels_1 #np.concatenate((labels_1), axis=0)
-    dev_ampro_data = data_2
-    dev_ampro_labels = labels_2
-    test_ampro_data = data_3
-    test_ampro_labels = labels_3
+    save_normalization(savepath,train_mean,train_std)
 
-    # Convert data to PyTorch Tensors
-    train_data = torch.Tensor(train_ampro_data).float()
-    train_labels = torch.Tensor(train_ampro_labels).float()
-    dev_data = torch.Tensor(dev_ampro_data).float()
-    dev_labels = torch.Tensor(dev_ampro_labels).float()
-    test_data = torch.Tensor(test_ampro_data).float()
-    test_labels = torch.Tensor(test_ampro_labels).float()
-
-    # Normalize data TODO save these parameters to use for inference
-    mean_train_data = torch.mean(train_data.reshape(train_data.size(0) * train_data.size(1), -1), 0)
-    std_train_data = torch.std(train_data.reshape(train_data.size(0) * train_data.size(1), -1), 0)
-    train_data_norm = (train_data - mean_train_data) / std_train_data
-    dev_data_norm = (dev_data - mean_train_data) / std_train_data
-    test_data_norm = (test_data - mean_train_data) / std_train_data
-    save_normalization(savepath,mean_train_data,std_train_data)
-
-    # Get number of classes
+      # Get number of classes
     num_classes = train_labels.size(-1)
 
     # Convert Dev and Test data into single batch form
@@ -193,9 +169,9 @@ if __name__ == '__main__':
     print("\n")
 
     # Create PyTorch Dataset
-    train_set = Dataset(train_data_norm, train_labels, mode)
-    dev_set = Dataset(dev_data_norm, dev_labels, mode)
-    test_set = Dataset(test_data_norm, test_labels, mode)
+    train_set = Dataset(train_data, train_labels, mode)
+    dev_set = Dataset(dev_data, dev_labels, mode)
+    test_set = Dataset(test_data, test_labels, mode)
 
     # Create PyTorch dataloaders for train and dev set
     train_generator = data.DataLoader(dataset=train_set, batch_size=batch_size, shuffle=True)
@@ -206,9 +182,9 @@ if __name__ == '__main__':
           '# Dataset\n\r'
           '###################################################################################')
     print("Dim: (num_sample, look_back_len, feat_size)")
-    print("Train data size:  ", train_data_norm.size())
+    print("Train data size:  ", train_data.size())
     print("Train label size: ", train_labels.size())
-    print("Test data size:   ", dev_data_norm.size())
+    print("Test data size:   ", dev_data.size())
     print("Test label size:  ", dev_labels.size())
     print("\n\r")
     # Data Range
@@ -221,7 +197,7 @@ if __name__ == '__main__':
           '# Network\n\r'
           '###################################################################################')
     # Network Dimension
-    rnn_inp_size = train_data_norm.size(-1)
+    rnn_inp_size = train_data.size(-1)
     print("rnn_inp_size             = ", rnn_inp_size)
     print("rnn_hid_size             = ", rnn_hid_size)
     print("num_rnn_layers           = ", num_rnn_layers)
