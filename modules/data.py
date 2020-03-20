@@ -209,13 +209,11 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med
     # print("Angle Min:   ", angle_min)
     # print("Angle Max:   ", angle_max)
 
-    '''
-    To compute normalization,
-    reshape the data_new tensor from [sample, sequence, # sensor inputs * cw_len] to [sample*sequence, # sensor inputs*cw_len]
-    torch.mean(data_new, 0)
-    calculates the mean of elements along the first dimension
-    The result is a [#sensor inputs*cw_len] vector containing the mean of every feature in the data_new
-    '''
+    # To compute normalization,
+    # reshape the data_new tensor from [sample, sequence, # sensor inputs * cw_len] to [sample*sequence, # sensor inputs*cw_len]
+    # torch.mean(data_new, 0)
+    # calculates the mean of elements along the first dimension
+    # The result is a [#sensor inputs*cw_len] vector containing the mean of every feature in the data_new
     nsamps=data_new.size(0) * data_new.size(1)
     mean_train_data = torch.mean(data_new.reshape(nsamps, -1), 0)
     std_train_data = torch.std(data_new.reshape(nsamps, -1), 0)
