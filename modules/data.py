@@ -213,16 +213,18 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med
     # reshape the data_new tensor from [sample, sequence, # sensor inputs * cw_len] to [sample*sequence, # sensor inputs*cw_len]
     # torch.mean(data_new, 0)
     # calculates the mean of elements along the first dimension
-    # The result is a [#sensor inputs*cw_len] vector containing the mean of every feature in the data_new
-    nsamps=data_new.size(0) * data_new.size(1)
-    mean_train_data = torch.mean(data_new.reshape(nsamps, -1), 0)
-    std_train_data = torch.std(data_new.reshape(nsamps, -1), 0)
+    # The result is a [#sensor_inputs*cw_len] vector containing the mean of every feature in the data_new
+
+    n = target_new.size(0) * target_new.size(1)
+    mean_target_data = torch.mean(target_new.reshape(n, -1), 0)
+    std_target_data = torch.std(target_new.reshape(n, -1), 0)
+    label_data_norm = (target_new - mean_target_data) / std_target_data
+    n=data_new.size(0) * data_new.size(1)
+    mean_train_data = torch.mean(data_new.reshape(n, -1), 0)
+    std_train_data = torch.std(data_new.reshape(n, -1), 0)
     train_data_norm = (train_data - mean_train_data) / std_train_data
 
-    nsamps=target_new.size(0) * target_new.size(1)
-    mean_target_data = torch.mean(target_new.reshape(nsamps, -1), 0)
-    std_target_data = torch.std(target_new.reshape(nsamps, -1), 0)
-    label_data_norm = (target_new - mean_target_data) / std_target_data
+
 
     return train_data_norm, label_data_norm, mean_train_data, std_train_data, mean_target_data, std_target_data
     # return test_sample, data_new, target_new
