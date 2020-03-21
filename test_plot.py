@@ -22,6 +22,7 @@ if __name__ == '__main__':
     parser.add_argument('--cw_plen', default=100, type=int, help='Number of previous timesteps in the context window, leads to initial latency')
     parser.add_argument('--cw_flen', default=0, type=int, help='Number of future timesteps in the context window, leads to consistent latency')
     parser.add_argument('--pw_len', default=100, type=int, help='Number of future timesteps in the prediction window')
+    parser.add_argument('--stride', default=1, type=int, help='Stride for time series data slice window')
     parser.add_argument('--pw_off', default=1, type=int, help='Offset in #timesteps of the prediction window w.r.t the current timestep')
     parser.add_argument('--pw_idx', default=1, type=int, help='Index of timestep in the prediction window to show in plots')
     parser.add_argument('--seq_len', default=50, type=int, help='Sequence Length')
@@ -42,6 +43,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_epochs', default=5, type=int, help='(ignored) Number of epochs to train for.')
     parser.add_argument('--mode', default=1, type=int, help='(ignored) Mode 0 - Pretrain on GRU; Mode 1 - Retrain on GRU; Mode 2 - Retrain on DeltaGRU')
     parser.add_argument('--lr', default=5e-4, type=float, help='(ignored) Learning rate')  # 5e-4
+    parser.add_argument('--cuda', default=0, type=int, help='1 to use cuda, 0 for CPU (better debug output)')  # 5e-4
     args = parser.parse_args()
 
     # print command line (maybe to use in a script)
@@ -72,7 +74,6 @@ if __name__ == '__main__':
     # Whether test retrain model
     retrain = 0
 
-
     # Network Dimension
     rnn_hid_size = args.rnn_hid_size
     rnn_type = 'GRU'
@@ -99,16 +100,13 @@ if __name__ == '__main__':
     ########################################################
     # Create Dataset
     ########################################################
-    _, test_data, test_labels = load_data(test_file, cw_plen, cw_flen, pw_len, pw_off, seq_len)
+    test_data, test_labels,_,_,_,_ = load_data(test_file, cw_plen, cw_flen, pw_len, pw_off, seq_len)
+    # test_data: input sensor and control signals
+    # test_labels: what we want to predict (the sensor data into the future)
+    # both are torch tensors
 
-    # Convert data to PyTorch Tensors
-    test_data = torch.Tensor(test_data).float()  # the raw sensor and control data
-    test_labels = torch.Tensor(test_labels).float() # what we want to predict (the sensor data into the future)
-
-    # Get Mean and Std of Train Data78/-
+    # Get Mean and Std of Train Data, to use normalize test data and unnormalize it for plotting
     mean_train_data, std_train_data=load_normalization(savepath) # we need to unnormalize the predictions to get the predictions in input units
-    # mean_train_data = torch.mean(train_data.reshape(train_data.size(0) * train_data.size(1), -1), 0)
-    # std_train_data = torch.std(train_data.reshape(train_data.size(0) * train_data.size(1), -1), 0)
 
     # Get number of classes
     rnn_output_size = test_labels.size(-1)
@@ -146,7 +144,7 @@ if __name__ == '__main__':
                        th_h=th_h,
                        eval_sparsity=0,
                        quantize_act=1,
-                       cuda=1)
+                       cuda=args.cuda)
 
     ########################################################
     # Initialize Parameters
@@ -168,7 +166,8 @@ if __name__ == '__main__':
     net.load_state_dict(new_state_dict)
 
     # Move network to GPU
-    net = net.cuda()
+    if args.cuda:
+        net = net.cuda()
 
     ########################################################
     ########################################################
@@ -179,18 +178,15 @@ if __name__ == '__main__':
     start_time = time.time()
 
     ########################################################################
-    test_data = test_data[:, 0, :].unsqueeze(1) # raw data in a time serie, unsqueeze keeps as 3d
-    test_data = test_data.transpose(0, 1) # put seq len as first, sample as 2nd, to normalization
+    test_data = test_data[:, 0, :].unsqueeze(1) # raw data in a time series, unsqueeze keeps as 3d
+    test_data = test_data.transpose(0, 1) # put seq len as first, sample as 2nd, to normalize
     test_data_norm = (test_data - mean_train_data) / std_train_data # to input to RNN for prediction
-
-    # Get corresponding actual series
-    test_actual = test_labels[:, 0, :].squeeze().numpy() # the actual output we will compare with
-
-    # Run trained network
-    net = net.eval() # set to eval mode
-    test_sample_norm = test_data_norm.cuda()
     # test_sample_norm = quantizeTensor(test_sample_norm, aqi, aqf, 1) # TODO add check for quantization
-    test_sample_norm = test_sample_norm.transpose(0, 1) # flip for input to RNN
+    test_sample_norm = test_data_norm.transpose(0, 1) # flip for input to RNN
+    if args.cuda:
+        test_sample_norm = test_data_norm.cuda() # move data to cuda
+
+    net = net.eval() # set to eval mode
     y_pred, _, _ = net(test_sample_norm) # run samples through RNN, results in
     y_pred = y_pred.squeeze().cpu().detach().numpy() # Convert tensor to numpy mat [sample, state]
 
@@ -200,7 +196,7 @@ if __name__ == '__main__':
 
     print("Test Sample Size:      ", test_sample_norm.size())
     print("Test Output Size:      ", y_pred.shape)
-    print("Test Real Data Size:   ", test_actual.shape)
+    print("Test Real Data Size:   ", test_labels.shape)
 
     ########################################################################
     # Draw a plot of RNN input and output
