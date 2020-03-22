@@ -3,19 +3,20 @@ import main
 from modules.util import  print_commandline
 import warnings
 
-TRAIN_FILE_DEFAULT= '../data/cartpole-2020-03-09-14-43-54 stock motor PD control w dance and steps.csv'
-VAL_FILE_DEFAULT= '../data/cartpole-2020-03-09-14-21-24 stock motor PD angle zero correct.csv'
-TEST_FILE_DEFAULT= '../data/cartpole-2020-03-09-14-24-21 stock motor PD with dance.csv'
+TRAIN_FILE_DEFAULT= './data/cartpole-2020-03-09-14-43-54 stock motor PD control w dance and steps.csv'
+VAL_FILE_DEFAULT= './data/cartpole-2020-03-09-14-21-24 stock motor PD angle zero correct.csv'
+TEST_FILE_DEFAULT= './data/cartpole-2020-03-09-14-24-21 stock motor PD with dance.csv'
 
 def args():
     parser = argparse.ArgumentParser(description='Train a GRU network.')
 
     # which hardware to usee
-    parser.add_argument('--cuda', default=0, type=int, help='1 to use cuda, 0 for CPU (better debug output)')  # 5e-4
+    parser.add_argument('--cuda', default=1, type=int, help='1 to use cuda, 0 for CPU (better debug output)')  # 5e-4
     # data
     parser.add_argument('--train_file', default=TRAIN_FILE_DEFAULT, type=str, help='Training dataset file')
     parser.add_argument('--val_file',   default=VAL_FILE_DEFAULT, type=str, help='Validation dataset file')
     parser.add_argument('--test_file',  default=TEST_FILE_DEFAULT, type=str, help='Testing dataset file')
+    parser.add_argument('--med_filt',    default=5,type=int,help='median filter window length for all data, to remove outliers. Set to 0 to disable')
     #training
     parser.add_argument('--mode',       default=1, type=int,  help='Mode 0 - Pretrain on GRU; Mode 1 - Retrain on GRU; Mode 2 - Retrain on DeltaGRU')
     parser.add_argument('--seed',       default=1, type=int, help='Initialize the random seed of the run (for reproducibility).')

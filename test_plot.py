@@ -64,7 +64,7 @@ if __name__ == '__main__':
     ########################################################
     # Create Dataset
     ########################################################
-    test_data, test_labels,_,_,_,_ = load_data(test_file, cw_plen, cw_flen, pw_len, pw_off, seq_len)
+    test_data, test_labels,_,_,_,_ = load_data(test_file, cw_plen, cw_flen, pw_len, pw_off, seq_len, args.stride, args.med_filt)
     # test_data: input sensor and control signals
     # test_labels: what we want to predict (the sensor data into the future)
     # both are torch tensors

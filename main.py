@@ -110,9 +110,9 @@ if __name__ == '__main__':
     ########################################################
     # Create Dataset
     ########################################################
-    train_data, train_labels, train_mean, train_std, label_mean, label_std = load_data(train_file, cw_plen, cw_flen, pw_len, pw_off, seq_len)
-    dev_data, dev_labels, _, _, _, _ = load_data(val_file, cw_plen, cw_flen, pw_len, pw_off, seq_len)
-    test_data, test_labels, _, _, _, _ = load_data(test_file, cw_plen, cw_flen, pw_len, pw_off, seq_len)
+    train_data, train_labels, train_mean, train_std, label_mean, label_std = load_data(train_file, cw_plen, cw_flen, pw_len, pw_off, seq_len, args.stride, args.medfilt)
+    dev_data, dev_labels, _, _, _, _ = load_data(val_file, cw_plen, cw_flen, pw_len, pw_off, seq_len, args.stride, args.medfilt)
+    test_data, test_labels, _, _, _, _ = load_data(test_file, cw_plen, cw_flen, pw_len, pw_off, seq_len, args.stride, args.med_filt)
 
     save_normalization(savepath,train_mean,train_std)
 

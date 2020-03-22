@@ -32,7 +32,7 @@ class Dataset(data.Dataset):
         return X, y
 
 
-def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, medFilterWindow=3):
+def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med_filt=3):
     '''
     Loads dataset from CSV file
     Args:
@@ -43,7 +43,7 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med
         pw_off: prediction offset
         seq_len: number of samples in time input to RNN
         stride: step over data in samples between samples
-        medFilterWindow: median filter window, 0 to disable
+        medfilt: median filter window, 0 to disable
 
     Returns:
         Normalized torch.Tensor(data).float() tensors
@@ -71,13 +71,13 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med
     angle = df.angleErr.to_numpy() # simplify the pole angle to just angle error, so it is zero centered around presumed vertical position
     # desired vertical angle might be incorrectly set, resulting in large position offset that balances position and angle control
     angle = angle*RAD_PER_ANGLE_ADC # angle has range -pi to +pi, centered very closely around 0 during balancing
-    if medFilterWindow>0:
-        angle=medfilt(angle,medFilterWindow)
+    if med_filt>0:
+        angle=medfilt(angle, med_filt)
     position = df.position.to_numpy()/POSITION_LIMIT # leave cart position as absolute position since the target position might change with time and the values
                                         # for control might depend on position of cart
     # position has range < +/-1
-    if medFilterWindow>0:
-        position=medfilt(position,medFilterWindow)
+    if med_filt>0:
+        position=medfilt(position, med_filt)
 
     # project angle onto x and y since angle is a rotational variable with 2pi cut that we cannot fit properly and does not represent gravity and lateral acceleration well.
     sinAngle=np.sin(angle)
