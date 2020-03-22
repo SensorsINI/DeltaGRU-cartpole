@@ -188,7 +188,7 @@ if __name__ == '__main__':
                        th_h=th_h,
                        eval_sparsity=0,
                        quantize_act=1,
-                       cuda=1)
+                       cuda=args.cuda)
 
     if mode != 0:
         print("Loading pretrained model: ", pretrain_model_path)
@@ -207,7 +207,7 @@ if __name__ == '__main__':
         net.load_state_dict(new_state_dict)
 
     # Move network to GPU
-    net = net.cuda()
+    if args.cuda:  net = net.cuda()
 
     # Print parameter count
     params = 0
@@ -276,8 +276,13 @@ if __name__ == '__main__':
 
         for batch, labels in tqdm(train_generator):  # Iterate through batches
             # Move data to GPU
-            batch = batch.float().cuda().transpose(0, 1)
-            labels = labels.float().cuda()
+            if args.cuda:
+                batch = batch.float().cuda().transpose(0, 1)
+                labels = labels.float().cuda()
+            else:
+                batch = batch.float().transpose(0, 1)
+                labels = labels.float()
+
             batch = quantizeTensor(batch, aqi, aqf, qa)
 
             # Optimization
@@ -328,9 +333,12 @@ if __name__ == '__main__':
         dev_batches = 0
 
         for (batch, labels) in tqdm(dev_generator):
-            # Move data to GPU
-            batch = batch.float().cuda().transpose(0, 1)
-            labels = labels.float().cuda()
+            if args.cuda:
+                batch = batch.float().cuda().transpose(0, 1)
+                labels = labels.float().cuda()
+            else:
+                batch = batch.float().transpose(0, 1)
+                labels = labels.float()
             batch = quantizeTensor(batch, aqi, aqf, qa)
 
             # Forward propagation
@@ -359,9 +367,12 @@ if __name__ == '__main__':
         test_batches = 0
         # Batch loop - validation
         for (batch, labels) in tqdm(test_generator):
-            # Move data to GPU
-            batch = batch.float().cuda().transpose(0, 1)
-            labels = labels.float().cuda()
+            if args.cuda:
+                batch = batch.float().cuda().transpose(0, 1)
+                labels = labels.float().cuda()
+            else:
+                batch = batch.float().transpose(0, 1)
+                labels = labels.float()
             batch = quantizeTensor(batch, aqi, aqf, qa)
 
             # Forward propagation
