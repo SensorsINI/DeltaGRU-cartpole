@@ -1,7 +1,5 @@
 import os
-import sys
 import collections
-import argparse
 import math
 import time
 import torch as t
@@ -13,44 +11,14 @@ from tqdm import tqdm
 import random as rnd
 import numpy as np
 import modules.models as models
-from modules.util import quantizeTensor, timeSince, quantize_rnn, print_commandline,save_normalization
-from modules.log import write_log, write_log_header
+from modules.util import quantizeTensor, timeSince, quantize_rnn, save_normalization
+from modules.log import write_log
 from modules.data import load_data, Dataset
 from modules.deltarnn import get_temporal_sparsity
-
-TRAIN_FILE_DEFAULT='data/cartpole-2020-03-09-14-43-54 stock motor PD control w dance and steps.csv'
-VAL_FILE_DEFAULT='data/cartpole-2020-03-09-14-21-24 stock motor PD angle zero correct.csv'
-TEST_FILE_DEFAULT='data/cartpole-2020-03-09-14-24-21 stock motor PD with dance.csv'
+from modules import parseArgs
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Train a GRU network.')
-    parser.add_argument('--train_file', default=TRAIN_FILE_DEFAULT, type=str,help='Training dataset file')
-    parser.add_argument('--val_file', default=VAL_FILE_DEFAULT, type=str,help='Validation dataset file')
-    parser.add_argument('--test_file', default=TEST_FILE_DEFAULT, type=str,help='Testing dataset file')
-    parser.add_argument('--seed', default=1, type=int, help='Initialize the random seed of the run (for reproducibility).')
-    parser.add_argument('--stride', default=1, type=int, help='Stride for time series data slice window')
-    parser.add_argument('--cw_plen', default=10, type=int, help='Number of previous timesteps in the context window, leads to initial latency')
-    parser.add_argument('--cw_flen', default=0, type=int, help='Number of future timesteps in the context window, leads to consistent latency')
-    parser.add_argument('--pw_len', default=10, type=int, help='Number of future timesteps in the prediction window')
-    parser.add_argument('--pw_off', default=1, type=int, help='Offset in #timesteps of the prediction window w.r.t the current timestep')
-    parser.add_argument('--seq_len', default=32, type=int, help='Sequence Length for BPTT training; samples are drawn with this length randomly throughout training set')
-    parser.add_argument('--batch_size', default=32, type=int, help='Batch size. How many samples to run forward in parallel before each weight update.')
-    parser.add_argument('--num_epochs', default=10, type=int, help='Number of epochs to train for.')
-    parser.add_argument('--mode', default=1, type=int, help='Mode 0 - Pretrain on GRU; Mode 1 - Retrain on GRU; Mode 2 - Retrain on DeltaGRU')
-    parser.add_argument('--num_rnn_layers', default=2, type=int, help='Number of RNN layers')
-    parser.add_argument('--rnn_hid_size', default=32, type=int, help='RNN Hidden layer size')
-    parser.add_argument('--lr', default=1e-4, type=float, help='Learning rate')  # 5e-4
-    parser.add_argument('--qa', default=0, type=int, help='Whether quantize the network activations')
-    parser.add_argument('--qw', default=0, type=int, help='Whether quantize the network weights')
-    parser.add_argument('--aqi', default=8, type=int, help='Number of integer bits before decimal point for activation')
-    parser.add_argument('--aqf', default=8, type=int, help='Number of integer bits after decimal point for activation')
-    parser.add_argument('--wqi', default=8, type=int, help='Number of integer bits before decimal point for weight')
-    parser.add_argument('--wqf', default=8, type=int, help='Number of integer bits after decimal point for weight')
-    parser.add_argument('--th_x', default=64/256, type=float, help='Delta threshold for inputs')
-    parser.add_argument('--th_h', default=64/256, type=float, help='Delta threshold for hidden states')
-    args = parser.parse_args()
-
-    print_commandline(parser)
+    args = parseArgs.args()
 
     # Make folders
     try:

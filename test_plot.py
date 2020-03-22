@@ -1,53 +1,17 @@
-import sys
 import collections
-import argparse
-from modules import models as models
+from modules import models as models, parseArgs
 import time
 import torch.utils.data.dataloader
 import numpy as np
 import random as rnd
-from modules.util import quantizeTensor, print_commandline, load_normalization
-from modules.data import load_data, Dataset, RAD_PER_ANGLE_ADC
+from modules.util import load_normalization
+from modules.data import load_data
 import matplotlib.pyplot as plt
-import main
-from torch.utils import data
+
 # import matplotlib.pylab as pylab
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Train a GRU network.')
-    parser.add_argument('--train_file', default=main.TRAIN_FILE_DEFAULT, type=str,help='(ignored) Training dataset file')
-    parser.add_argument('--val_file', default=main.VAL_FILE_DEFAULT, type=str,help='(ignored) Validation dataset file')
-    parser.add_argument('--test_file', default=main.TEST_FILE_DEFAULT, type=str,help='Testing dataset file')
-    parser.add_argument('--seed', default=1, type=int, help='Initialize the random seed of the run (for reproducibility).')
-    parser.add_argument('--cw_plen', default=100, type=int, help='Number of previous timesteps in the context window, leads to initial latency')
-    parser.add_argument('--cw_flen', default=0, type=int, help='Number of future timesteps in the context window, leads to consistent latency')
-    parser.add_argument('--pw_len', default=100, type=int, help='Number of future timesteps in the prediction window')
-    parser.add_argument('--stride', default=1, type=int, help='Stride for time series data slice window')
-    parser.add_argument('--pw_off', default=1, type=int, help='Offset in #timesteps of the prediction window w.r.t the current timestep')
-    parser.add_argument('--pw_idx', default=1, type=int, help='Index of timestep in the prediction window to show in plots')
-    parser.add_argument('--seq_len', default=50, type=int, help='Sequence Length')
-    parser.add_argument('--plot_len', default=500, type=int, help='Number of timesteps in the plot window')
-    parser.add_argument('--rnn_type', default='GRU', help='Mode 0 - Pretrain on GRU; Mode 1 - Retrain on GRU; Mode 2 - Retrain on DeltaGRU')
-    parser.add_argument('--num_rnn_layers', default=2, type=int, help='Number of RNN layers')
-    parser.add_argument('--rnn_hid_size', default=512, type=int, help='RNN Hidden layer size')
-    parser.add_argument('--qa', default=0, type=int, help='Whether quantize the network activations')
-    parser.add_argument('--qw', default=0, type=int, help='Whether quantize the network weights')
-    parser.add_argument('--aqi', default=8, type=int, help='Number of integer bits before decimal point for activation')
-    parser.add_argument('--aqf', default=8, type=int, help='Number of integer bits after decimal point for activation')
-    parser.add_argument('--wqi', default=8, type=int, help='Number of integer bits before decimal point for weight')
-    parser.add_argument('--wqf', default=8, type=int, help='Number of integer bits after decimal point for weight')
-    parser.add_argument('--th_x', default=64/256, type=float, help='Delta threshold for inputs')
-    parser.add_argument('--th_h', default=64/256, type=float, help='Delta threshold for hidden states')
-    # below ignored, added to allow running with same args as training
-    parser.add_argument('--batch_size', default=64, type=int, help='(ignored) Batch size. How many samples to run forward in parallel before each weight update.')
-    parser.add_argument('--num_epochs', default=5, type=int, help='(ignored) Number of epochs to train for.')
-    parser.add_argument('--mode', default=1, type=int, help='(ignored) Mode 0 - Pretrain on GRU; Mode 1 - Retrain on GRU; Mode 2 - Retrain on DeltaGRU')
-    parser.add_argument('--lr', default=5e-4, type=float, help='(ignored) Learning rate')  # 5e-4
-    parser.add_argument('--cuda', default=0, type=int, help='1 to use cuda, 0 for CPU (better debug output)')  # 5e-4
-    args = parser.parse_args()
-
-    # print command line (maybe to use in a script)
-    print_commandline(parser)
+    args = parseArgs.args()
 
     # Set seeds
     seed = args.seed
@@ -271,8 +235,7 @@ if __name__ == '__main__':
     ########################################################################
     import numpy as np
     import matplotlib.pyplot as plt
-    from matplotlib.widgets import Slider, Button, RadioButtons
-    import math
+    from matplotlib.widgets import Slider, Button
 
     # Initialize Plot
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 10), sharex=True)
@@ -286,7 +249,7 @@ if __name__ == '__main__':
     angle_actual = test_data[:,t_plot:t_plot + plot_len,0].squeeze() # should already be in radians
     angle_context = test_data[:,t_plot:t_plot + cw_plen,0].squeeze() # should already be in radians
     angle_pred = np.squeeze(y_pred[t_plot, :, 0])
-    position_actual = test_data[:,t_plot:t_plot + plot_len,3].squeeze() # should already be in radians
+    position_actual = test_data[:,t_plot:t_plot + plot_len,3].squeeze() # shouldl already be in radians
     position_context = test_data[:,t_plot:t_plot + cw_plen,3].squeeze() # should already be in radians
     position_pred = y_pred[t_plot, :, 1]
 
