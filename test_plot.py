@@ -200,6 +200,8 @@ if __name__ == '__main__':
     ax2.tick_params(axis='both', which='major', labelsize=20)
     ax2.legend(fontsize=14)
 
+    plt.show()
+
     ########################################################################
     # Slider
     ########################################################################
@@ -246,6 +248,7 @@ if __name__ == '__main__':
 
     axcolor = 'lightgoldenrodyellow'
     axtstep = plt.axes([0.15, 0.15, 0.75, 0.03], facecolor=axcolor)
+
 
     # Sliders
     a0 = 5
