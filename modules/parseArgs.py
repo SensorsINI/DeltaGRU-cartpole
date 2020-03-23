@@ -1,6 +1,6 @@
 import argparse
 import main
-from modules.util import  print_commandline
+from modules.util import print_commandline
 import warnings
 
 TRAIN_FILE_DEFAULT= './data/cartpole-2020-03-09-14-43-54 stock motor PD control w dance and steps.csv'
@@ -49,5 +49,6 @@ def args():
 
     args = parser.parse_args()
     print_commandline(parser)
-    if not args.cuda:warnings.warn('not using CUDA hardware - see --cuda 0|1')
+    if not args.cuda:
+        warnings.warn('not using CUDA hardware - see --cuda 0|1')
     return args
