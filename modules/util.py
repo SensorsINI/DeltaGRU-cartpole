@@ -13,18 +13,22 @@ from torch.autograd.function import Function
 import time
 import math
 
-def save_normalization(save_path, mean, std):
+def save_normalization(save_path, tr_mean, tr_std, lab_mean, lab_std):
     fn_base = os.path.splitext(save_path)[0]
     print("\nSaving normalization parameters to " + str(fn_base)+'-XX.pt')
-    t.save(mean, str(fn_base+'-mean.pt'))
-    t.save(std, str(fn_base+'-std.pt'))
+    norm = {
+            'tr_mean': tr_mean,
+            'tr_std': tr_std,
+            'lab_mean': lab_mean,
+            'lab_std': lab_std,
+        }
+    t.save(norm, str(fn_base+'-norm.pt'))
 
 def load_normalization(save_path):
     fn_base = os.path.splitext(save_path)[0]
     print("\nLoading normalization parameters from ", str(fn_base))
-    mean = t.load(fn_base+'-mean.pt')
-    std = t.load(fn_base + '-std.pt')
-    return mean, std
+    norm = t.load(fn_base+'-norm.pt')
+    return norm['tr_mean'], norm['tr_std'], norm['lab_mean'], norm['lab_std']
 
 # print command line (maybe to use in a script)
 def print_commandline(parser):

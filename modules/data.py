@@ -33,6 +33,9 @@ class Dataset(data.Dataset):
 
 
 def normalize(dat, mean, std):
+    rep=dat.shape[2]/mean.shape[0] # there is 1 mean for each input sensor value, repeat it for each element in sequence in data
+    mean=mean.repeat(rep)
+    std=std.repeat(rep)
     dat= (dat - mean) / std
     return dat
 
@@ -41,16 +44,24 @@ def unnormalize(dat, mean, std):
     return dat
 
 def computeNormalization(dat: numpy.array):
+    '''
+    Computes the special normalization of our data
+    Args:
+        dat: numpy array of data arranged as [sample, sensor/control vaue]
+
+    Returns:
+        mean and std, each one is a vector of values
+    '''
     # Collect desired prediction
     # All terms are weighted equally by the loss function (either L1 or L2),
     # so we need to make sure that we don't have values here that are too different in range
     # Since the derivatives are computed on normalized data, but divided by the delta time in ms,
     # we need to normalize the derivatives too. (We include the delta time to make more physical units of time
     # so that the values don't change with different sample rate.)
-    n = dat.shape[0] * dat.shape[1] # num_samples * seq_length
-    m = np.mean(dat.reshape(n, -1), 0)
-    s = np.std(dat.reshape(n, -1), 0)
-    m[0]=s[0]=m[1]=s[1]=0 # handle some things specially, like sin/cos that should not be touched
+    m = np.mean(dat, 0)
+    s = np.std(dat, 0)
+    m[0]=m[1]=0
+    s[0]=s[1]=1 # handle some things specially, like sin/cos that should not be touched
     return m,s
 
 def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med_filt=3):
@@ -70,9 +81,11 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med
         Unnormalized torch.Tensor(data).float() tensors
         input_data:  indexed by [sample, sequence, # sensor inputs * cw_len]
         label_data:  indexed by [sample, sequence, # output sensor values * pw_len]
-        mean_train_data, std_train_data, mean_target_data, std_target_data: the means and stds of training and target data
+        mean_train_data, std_train_data, mean_target_data, std_target_data: the means and stds of training and target data.
+            These are vectors with length # of sensorss
 
-        The last dimension of input_data and label_data is organized by all sensors for sample0, all sensors for sample1, .....all sensors for sampleN
+        The last dimension of input_data and label_data is organized by
+         all sensors for sample0, all sensors for sample1, .....all sensors for sampleN, where N is the prediction length
     '''
 
     # Load dataframe

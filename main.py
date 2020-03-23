@@ -114,7 +114,7 @@ if __name__ == '__main__':
     dev_data, dev_labels, _, _, _, _ = load_data(val_file, cw_plen, cw_flen, pw_len, pw_off, seq_len, args.stride, args.med_filt)
     test_data, test_labels, _, _, _, _ = load_data(test_file, cw_plen, cw_flen, pw_len, pw_off, seq_len, args.stride, args.med_filt)
 
-    save_normalization(savepath,train_mean,train_std)
+    save_normalization(savepath,train_mean,train_std, label_mean, label_std)
 
     # normalize all data by training set values
     train_data=normalize(train_data,train_mean,train_std)
@@ -126,22 +126,6 @@ if __name__ == '__main__':
 
       # Get number of classes
     num_classes = train_labels.size(-1)
-
-    # Convert Dev and Test data into single batch form
-    # dev_data_norm = dev_data_norm[:, 0, :].unsqueeze(1)
-    # dev_data_norm = dev_data_norm.cuda()
-    # dev_ampro_labels = dev_ampro_labels[:, 0, :].unsqueeze(1)
-    # dev_ampro_labels = dev_ampro_labels.cuda()
-    # test_data_norm = test_data_norm[:, 0, :].unsqueeze(1)
-    # test_data_norm = test_data_norm.cuda()
-    # test_data_norm = test_data_norm[:, 0, :].unsqueeze(1)
-    # test_ampro_labels = test_data_norm.cuda()
-    # print("Train data  dimension: ", train_data_norm.shape)
-    # print("Train label dimension: ", train_ampro_labels.shape)
-    # print("Dev   data  dimension: ", dev_data_norm.shape)
-    # print("Dev   label dimension: ", dev_ampro_labels.shape)
-    # print("Test  data  dimension: ", test_data_norm.shape)
-    # print("Test  label dimension: ", test_ampro_labels.shape)
     print("\n")
 
     # Create PyTorch Dataset
