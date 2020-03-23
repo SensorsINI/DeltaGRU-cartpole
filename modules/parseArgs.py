@@ -1,6 +1,6 @@
 import argparse
 import main
-from modules.util import  print_commandline
+from modules.util import print_commandline
 import warnings
 
 TRAIN_FILE_DEFAULT= './data/cartpole-2020-03-09-14-43-54 stock motor PD control w dance and steps.csv'
@@ -11,7 +11,7 @@ def args():
     parser = argparse.ArgumentParser(description='Train a GRU network.')
 
     # which hardware to usee
-    parser.add_argument('--cuda', default=0, type=int, help='1 to use cuda, 0 for CPU (better debug output)')  # 5e-4
+    parser.add_argument('--cuda', default=1, type=int, help='1 to use cuda, 0 for CPU (better debug output)')  # 5e-4
     # data
     parser.add_argument('--train_file', default=TRAIN_FILE_DEFAULT, type=str, help='Training dataset file')
     parser.add_argument('--val_file',   default=VAL_FILE_DEFAULT, type=str, help='Validation dataset file')
@@ -49,5 +49,6 @@ def args():
 
     args = parser.parse_args()
     print_commandline(parser)
-    if not args.cuda:warnings.warn('not using CUDA hardware - see --cuda 0|1')
+    if not args.cuda:
+        warnings.warn('not using CUDA hardware - see --cuda 0|1')
     return args

@@ -1,0 +1,2 @@
+epoch,time,params,lr,train_loss,dev_loss,dev_gain,test_loss,sp_W,sp_dx,sp_dh
+0,0m 37s,60476,0.0001,0.5484339599609375,0.40618830256991917,1,0.5228584189164011,0.019031954887218094,0.0,0.0
