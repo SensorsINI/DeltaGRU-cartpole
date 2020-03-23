@@ -5,7 +5,7 @@ import torch.utils.data.dataloader
 import numpy as np
 import random as rnd
 from modules.util import load_normalization
-from modules.data import load_data
+from modules.data import load_data, normalize, unnormalize
 import matplotlib.pyplot as plt
 
 # import matplotlib.pylab as pylab
@@ -70,19 +70,18 @@ if __name__ == '__main__':
     # both are torch tensors
 
     # Get Mean and Std of Train Data, to use normalize test data and unnormalize it for plotting
-    mean_train_data, std_train_data=load_normalization(savepath) # we need to unnormalize the predictions to get the predictions in input units
+    mean_train_data, std_train_data, mean_label_data, std_label_data=load_normalization(savepath) # we need to unnormalize the predictions to get the predictions in input units
+    test_data_norm = normalize(test_data, mean_train_data, std_train_data)
+    test_labels_norm = normalize(test_labels, mean_label_data, std_label_data)
 
     # Get number of classes
     rnn_output_size = test_labels.size(-1)
-    print("\n")
-
-
-    print('###################################################################################\n\r'
+    print('\n###################################################################################\n\r'
           '# Dataset\n\r'
           '###################################################################################')
     print("Dim: (num_sample, look_back_len, feat_size)")
-    print("Test data size:         ", test_data.size())
-    print("Test prediction size:   ", test_labels.size())
+    print("Test data size:         ", test_data_norm.size())
+    print("Test prediction size:   ", test_labels_norm.size())
     print("\n\r")
 
     ########################################################
@@ -91,8 +90,8 @@ if __name__ == '__main__':
     print("Loading network...")
 
     # Network Dimension
-    rnn_inp_size = test_data.size(-1)
-    rnn_output_size = test_labels.size(-1)
+    rnn_inp_size = test_data_norm.size(-1)
+    rnn_output_size = test_labels_norm.size(-1)
     print("RNN input size:        ", rnn_inp_size)
     print("RNN output size:       ", rnn_output_size)
 
@@ -137,10 +136,10 @@ if __name__ == '__main__':
     print("Starting inference...")
 
     ########################################################################
-    test_data = test_data[:, 0, :].unsqueeze(1) # raw data in a time series, unsqueeze keeps as 3d
-    test_data = test_data.transpose(0, 1) # put seq len as first, sample as 2nd, to normalize
-    test_data_norm = (test_data - mean_train_data) / std_train_data # to input to RNN for prediction
-    # test_sample_norm = quantizeTensor(test_sample_norm, aqi, aqf, 1) # TODO add check for quantization
+    # test_data = test_data[:, 0, :].unsqueeze(1) # raw data in a time series, unsqueeze keeps as 3d
+    # test_data = test_data.transpose(0, 1) # put seq len as first, sample as 2nd, to normalize
+    # test_data_norm = (test_data - mean_train_data) / std_train_data # to input to RNN for prediction
+    # # test_sample_norm = quantizeTensor(test_sample_norm, aqi, aqf, 1) # TODO add check for quantization
     test_sample_norm = test_data_norm.transpose(0, 1) # flip for input to RNN
     if args.cuda:
         test_sample_norm = test_data_norm.cuda() # move data to cuda

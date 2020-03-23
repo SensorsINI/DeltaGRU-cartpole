@@ -124,9 +124,14 @@ if __name__ == '__main__':
     test_data=normalize(test_data,train_mean,train_std)
     test_labels=normalize(test_labels,label_mean, label_std)
 
-      # Get number of classes
-    num_classes = train_labels.size(-1)
-    print("\n")
+
+    # Convert Numpy Arrays to PyTorch Tensors
+    train_data = torch.from_numpy(train_data).float()
+    train_labels = torch.from_numpy(train_labels).float()
+    dev_data=torch.from_numpy(dev_data).float()
+    dev_labels=torch.from_numpy(dev_labels).float()
+    test_data=torch.from_numpy(test_data).float()
+    test_labels=torch.from_numpy(test_labels).float()
 
     # Create PyTorch Dataset
     train_set = Dataset(train_data, train_labels, mode)
@@ -137,6 +142,10 @@ if __name__ == '__main__':
     train_generator = data.DataLoader(dataset=train_set, batch_size=batch_size, shuffle=True)
     dev_generator = data.DataLoader(dataset=dev_set, batch_size=512, shuffle=True)
     test_generator = data.DataLoader(dataset=test_set, batch_size=512, shuffle=True)
+
+     # Get number of classes
+    num_classes = train_labels.size(-1)
+    print("\n")
 
     print('###################################################################################\n\r'
           '# Dataset\n\r'

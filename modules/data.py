@@ -40,6 +40,9 @@ def normalize(dat, mean, std):
     return dat
 
 def unnormalize(dat, mean, std):
+    rep=dat.shape[2]/mean.shape[0] # there is 1 mean for each input sensor value, repeat it for each element in sequence in data
+    mean=mean.repeat(rep)
+    std=std.repeat(rep)
     dat= dat * std + mean
     return dat
 
@@ -78,7 +81,7 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med
         medfilt: median filter window, 0 to disable
 
     Returns:
-        Unnormalized torch.Tensor(data).float() tensors
+        Unnormalized numpy arrays
         input_data:  indexed by [sample, sequence, # sensor inputs * cw_len]
         label_data:  indexed by [sample, sequence, # output sensor values * pw_len]
         mean_train_data, std_train_data, mean_target_data, std_target_data: the means and stds of training and target data.
@@ -205,9 +208,5 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med
     # print("Postion Min: ", position_max)
     # print("Angle Min:   ", angle_min)
     # print("Angle Max:   ", angle_max)
-
-    # Convert Numpy Arrays to PyTorch Tensors
-    data_new = torch.from_numpy(data_new).float()
-    target_new = torch.from_numpy(target_new).float()
 
     return data_new, target_new, m_tr, s_tr, m_tst, s_tst
