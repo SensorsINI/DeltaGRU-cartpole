@@ -18,7 +18,7 @@ def args():
     parser.add_argument('--test_file',  default=TEST_FILE_DEFAULT, type=str, help='Testing dataset file')
     parser.add_argument('--med_filt',    default=5,type=int,help='median filter window length for all data, to remove outliers. Set to 0 to disable')
     #training
-    parser.add_argument('--mode',       default=1, type=int,  help='Mode 0 - Pretrain on GRU; Mode 1 - Retrain on GRU; Mode 2 - Retrain on DeltaGRU')
+    parser.add_argument('--mode',       default=0, type=int,  help='Mode 0 - Pretrain on GRU; Mode 1 - Retrain on GRU; Mode 2 - Retrain on DeltaGRU')
     parser.add_argument('--seed',       default=1, type=int, help='Initialize the random seed of the run (for reproducibility).')
     parser.add_argument('--stride',     default=1, type=int, help='Stride for time series data slice window')
     parser.add_argument('--seq_len',    default=32, type=int,  help='Sequence Length for BPTT training; samples are drawn with this length randomly throughout training set')
@@ -28,7 +28,7 @@ def args():
     #architecure
     parser.add_argument('--rnn_type',   default='GRU',  help='Mode 0 - Pretrain on GRU; Mode 1 - Retrain on GRU; Mode 2 - Retrain on DeltaGRU')
     parser.add_argument('--num_rnn_layers',     default=2, type=int, help='Number of RNN layers')
-    parser.add_argument('--rnn_hid_size',       default=32, type=int, help='RNN Hidden layer size')
+    parser.add_argument('--rnn_hid_size',       default=64, type=int, help='RNN Hidden layer size')
     parser.add_argument('--cw_plen',    default=10, type=int, help='Number of previous timesteps in the context window, leads to initial latency')
     parser.add_argument('--cw_flen',    default=0, type=int,  help='Number of future timesteps in the context window, leads to consistent latency')
     parser.add_argument('--pw_len',     default=10, type=int, help='Number of future timesteps in the prediction window')

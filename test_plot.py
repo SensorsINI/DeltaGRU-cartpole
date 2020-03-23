@@ -22,8 +22,8 @@ if __name__ == '__main__':
     torch.backends.cudnn.deterministic = True
 
     # Hyperparameters
-    cw_plen = args.cw_plen  # Length of history in timesteps used to train the network
-    cw_flen = args.cw_flen  # Length of future in timesteps to predict
+    cw_plen = args.cw_plen  # Context window length of history in timesteps used to train (and run) the network
+    cw_flen = args.cw_flen  # Future length in timesteps to predict
     pw_len = args.pw_len  # Offset of future in timesteps to predict
     pw_off = args.pw_off  # Length of future in timesteps to predict
     pw_idx = args.pw_idx  # Index of timestep in the prediction window
@@ -81,8 +81,6 @@ if __name__ == '__main__':
           '# Dataset\n\r'
           '###################################################################################')
     print("Dim: (num_sample, look_back_len, feat_size)")
-    # print("Train data size:  ", train_data.size())
-    # print("Train label size: ", train_labels.size())
     print("Test data size:         ", test_data.size())
     print("Test prediction size:   ", test_labels.size())
     print("\n\r")
@@ -138,9 +136,6 @@ if __name__ == '__main__':
 
     print("Starting inference...")
 
-    # Timertest_actual
-    start_time = time.time()
-
     ########################################################################
     test_data = test_data[:, 0, :].unsqueeze(1) # raw data in a time series, unsqueeze keeps as 3d
     test_data = test_data.transpose(0, 1) # put seq len as first, sample as 2nd, to normalize
@@ -164,71 +159,46 @@ if __name__ == '__main__':
 
     ########################################################################
     # Draw a plot of RNN input and output
-    # sample_rate = 200  # 200 Hz
     ########################################################################
-    # params = {'axes.titlesize': 30,
-    #           'legend.fontsize': 'x-large',
-    #           'figure.figsize': (15, 5),
-    #          'axes.labelsize': 'x-large',
-    #          'axes.titlesize':'x-large',
-    #          'xtick.labelsize':'x-large',
-    #          'ytick.labelsize':'x-large'}
-    # pylab.rcParams.update(params)
-
-
     # Get Number of Total Timesteps
     num_test_tstep = test_sample_norm.size(0)
 
     # Get Ground Truth
     t_curr = cw_plen  # Put the initial timestep at the first timestep after the first possible context window
-    t_plot = t_curr - cw_plen
-    t_actual = np.arange(t_plot, t_plot + num_test_tstep)
-    angle_actual = test_data[:,t_plot:t_plot + num_test_tstep,0].squeeze() # should already be in radians
-    position_actual = test_data[:,t_plot:t_plot + num_test_tstep,3].squeeze() # should already be in radians
-
+    t_start = t_curr - cw_plen
+    ts_actual = np.arange(t_start, t_start + num_test_tstep)
+    angle_actual = test_data[:, ts_actual, 0].squeeze() # should already be in radians
+    position_actual = test_data[:, ts_actual, 3].squeeze() # should already be in radians
     # Get Angle Prediction
     # t_pred = np.arange(t_curr + pw_off, t_curr + pw_off + pw_len)
-    t_pred = np.arange(t_curr + pw_off, t_curr + pw_off + num_test_tstep)
+    ts_pred = np.arange(t_curr + pw_off, t_curr + pw_off + num_test_tstep)
     y_pred = np.reshape(y_pred, (num_test_tstep, pw_len, -1))  # Reshape to add the feature dimension (timestep, pw_len, feat)
-    # sin_pred = np.squeeze(y_pred[t_plot, :, 0])
-    # cos_pred = np.squeeze(y_pred[t_plot, :, 1])
-    # angle_pred = np.arctan2(sin_pred, cos_pred) # compute angle from sin and cos
-    # sin_pred = np.squeeze(y_pred[t_plot:t_plot + plot_len, 0, 0])
-    # cos_pred = np.squeeze(y_pred[t_plot:t_plot + plot_len, 0, 1])
-    # angle_pred = np.arctan2(sin_pred, cos_pred) # compute angle from sin and cos
-    angle_pred = np.squeeze(y_pred[t_plot:t_plot + num_test_tstep, 0, 0])
-
-    # Get Position Prediction
-    # position_pred = y_pred[t_plot, :, 2]
-    position_pred = y_pred[t_plot:t_plot + num_test_tstep, 0, 1]
+    sin_pred = np.squeeze(y_pred[t_start:t_start + num_test_tstep, 0, 0])
+    cos_pred = np.squeeze(y_pred[t_start:t_start + num_test_tstep, 0, 1])
+    # angle_pred = np.squeeze(y_pred[t_start:t_start + num_test_tstep, 0, 0])
+    angle_pred = np.arctan2(sin_pred, cos_pred) # compute angle from sin and cos
+    position_pred = y_pred[t_start:t_start + num_test_tstep, 0, 1]
 
     # Plot angle error
     fig1, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 8))
     ax1.set_title('(a)', fontsize=24)
     ax1.set_ylabel("angle err (rad)", fontsize=24)
     ax1.set_xlabel('Time (samples, 200/s)', fontsize=24)
-    ax1.plot(t_actual, angle_actual, 'k.', markersize=12, label='Ground Truth')
-    ax1.plot(t_pred, angle_pred, 'r.', markersize=3, label='RNN')
+    ax1.plot(ts_actual, angle_actual, 'k.', markersize=12, label='Ground Truth')
+    ax1.plot(ts_pred, angle_pred, 'r.', markersize=3, label='RNN')
     ax1.tick_params(axis='both', which='major', labelsize=20)
-    # ax3.set_yticks(np.arange(0, 36, 5))
-    ax1.legend(fontsize=18)
+    ax1.legend(fontsize=14)
 
     # Plot position error
     ax2.set_title('(b)', fontsize=24)
     ax2.set_ylabel("position err (enc)", fontsize=24)
     ax2.set_xlabel('Time', fontsize=24)
-    ax2.plot(t_actual, position_actual, 'k.', markersize=12, label='Ground Truth')
+    ax2.plot(ts_actual, position_actual, 'k.', markersize=12, label='Ground Truth')
     # print("t_pred size:      ", t_pred.shape)
     # print("pred_series size: ", position_actual.shape)
-    ax2.plot(t_pred, position_pred, 'r.', markersize=3, label='RNN')
-    # ax2.plot(t_actual, position_pred, 'r.', markersize=3, label='RNN')
+    ax2.plot(ts_pred, position_pred, 'r.', markersize=3, label='RNN')
     ax2.tick_params(axis='both', which='major', labelsize=20)
-    ax2.legend(fontsize=18)
-    # ax2.set_yticks(np.arange(-20, 120, 20))
-
-    # fig1.tight_layout(pad=1)
-    # fig1.savefig(plotpath, format='svg', bbox_inches='tight')
-    # plt.show()
+    ax2.legend(fontsize=14)
 
     ########################################################################
     # Slider
@@ -242,24 +212,28 @@ if __name__ == '__main__':
     plt.subplots_adjust(left=0.15, right=0.9, bottom=0.3, top=0.9)
     t = np.arange(0.0, 1.0, 0.001)
     t_curr = cw_plen  # Put the initial timestep at the first timestep after the first possible context window
-    t_plot = t_curr - cw_plen
-    t_actual = np.arange(t_plot, t_plot + plot_len)
-    t_context = np.arange(t_plot, t_plot + cw_plen)
-    t_pred = np.arange(t_curr + pw_off, t_curr + pw_off + pw_len)
-    angle_actual = test_data[:,t_plot:t_plot + plot_len,0].squeeze() # should already be in radians
-    angle_context = test_data[:,t_plot:t_plot + cw_plen,0].squeeze() # should already be in radians
-    angle_pred = np.squeeze(y_pred[t_plot, :, 0])
-    position_actual = test_data[:,t_plot:t_plot + plot_len,3].squeeze() # shouldl already be in radians
-    position_context = test_data[:,t_plot:t_plot + cw_plen,3].squeeze() # should already be in radians
-    position_pred = y_pred[t_plot, :, 1]
+    t_start = t_curr - cw_plen
+    ts_actual = np.arange(t_start, t_start + plot_len)
+    ts_context = np.arange(t_start, t_start + cw_plen)
+    # TODO angle from sin/cos actual and prediction
+    ts_pred = np.arange(t_curr + pw_off, t_curr + pw_off + pw_len)
+    sin_context = test_data[:, t_start:t_start + cw_plen, 0].squeeze()
+    cos_context = test_data[:, t_start:t_start + cw_plen, 0].squeeze()
+    angle_context = np.arctan2(sin_context, cos_context)
+    sin_pred = np.squeeze(y_pred[t_start, :, 0])
+    cos_pred = np.squeeze(y_pred[t_start, :, 0])
+    angle_pred = np.arctan2(sin_pred, cos_pred)
+    position_actual = test_data[:, t_start:t_start + plot_len, 3].squeeze() # shouldl already be in radians
+    position_context = test_data[:, t_start:t_start + cw_plen, 3].squeeze() # should already be in radians
+    position_pred = y_pred[t_start, :, 1]
 
     # Draw Plots
-    plot1_actual, = ax1.plot(t_actual, position_actual, 'k.', lw=3, label='Ground Truth')
-    plot1_context, = ax1.plot(t_context, position_context, 'g--', lw=2, label='Context')
-    plot1_pred, = ax1.plot(t_pred, position_pred, 'r-', lw=2, label='Prediction')
-    plot2_actual, = ax2.plot(t_actual, angle_actual, 'k.', lw=3, label='Ground Truth')
-    plot2_context, = ax2.plot(t_context, angle_context, 'g--', lw=2, label='Context')
-    plot2_pred, = ax2.plot(t_pred, angle_pred, 'r-', lw=2, label='Prediction')
+    plot1_actual, = ax1.plot(ts_actual, position_actual, 'k.', lw=3, label='Ground Truth')
+    plot1_context, = ax1.plot(ts_context, position_context, 'g--', lw=2, label='Context')
+    plot1_pred, = ax1.plot(ts_pred, position_pred, 'r-', lw=2, label='Prediction')
+    plot2_actual, = ax2.plot(ts_actual, angle_actual, 'k.', lw=3, label='Ground Truth')
+    plot2_context, = ax2.plot(ts_context, angle_context, 'g--', lw=2, label='Context')
+    plot2_pred, = ax2.plot(ts_pred, angle_pred, 'r-', lw=2, label='Prediction')
 
     ax1.set_ylabel("Pos. Error (rad)", fontsize=14)
     ax1.set_yticks(np.arange(-0.1, 1.1, 0.2))
