@@ -165,19 +165,17 @@ if __name__ == '__main__':
 
     # Get Ground Truth
     t_curr = cw_plen  # Put the initial timestep at the first timestep after the first possible context window
-    t_start = t_curr - cw_plen
-    ts_actual = np.arange(t_start, t_start + num_test_tstep)
-    angle_actual = test_data[:, ts_actual, 0].squeeze() # should already be in radians
-    position_actual = test_data[:, ts_actual, 3].squeeze() # should already be in radians
+    t_start = 0
+    ts_actual = np.arange(t_start, t_start + num_test_tstep) # timesteps to show actual input data
+    angle_actual = test_data[:, ts_actual, 0].squeeze() # is normalized data of input angle
+    position_actual = test_data[:, ts_actual, 3].squeeze() # normalized position
     # Get Angle Prediction
-    # t_pred = np.arange(t_curr + pw_off, t_curr + pw_off + pw_len)
-    ts_pred = np.arange(t_curr + pw_off, t_curr + pw_off + num_test_tstep)
-    y_pred = np.reshape(y_pred, (num_test_tstep, pw_len, -1))  # Reshape to add the feature dimension (timestep, pw_len, feat)
-    sin_pred = np.squeeze(y_pred[t_start:t_start + num_test_tstep, 0, 0])
+    ts_pred = np.arange(t_curr + pw_off, t_curr + pw_off + num_test_tstep) # prediction timesteps, not quite the same since there is offset and window
+    y_pred = np.reshape(y_pred, (num_test_tstep, pw_len, -1))  # ???? TODO why doesn't this use the ts_pred?? Reshape to add the feature dimension (timestep, pw_len, feat)
+    sin_pred = np.squeeze(y_pred[t_start:t_start + num_test_tstep, 0, 0]) # TODO same here, why not use ts_pred?
     cos_pred = np.squeeze(y_pred[t_start:t_start + num_test_tstep, 0, 1])
-    # angle_pred = np.squeeze(y_pred[t_start:t_start + num_test_tstep, 0, 0])
     angle_pred = np.arctan2(sin_pred, cos_pred) # compute angle from sin and cos
-    position_pred = y_pred[t_start:t_start + num_test_tstep, 0, 1]
+    position_pred = y_pred[t_start:t_start + num_test_tstep, 0, 1] # prediction of normalized position
 
     # Plot angle error
     fig1, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 8))

@@ -11,7 +11,7 @@ def args():
     parser = argparse.ArgumentParser(description='Train a GRU network.')
 
     # which hardware to usee
-    parser.add_argument('--cuda', default=0, type=int, help='1 to use cuda, 0 for CPU (better debug output)')  # 5e-4
+    parser.add_argument('--cuda', default=1, type=int, help='1 to use cuda, 0 for CPU (better debug output)')  # 5e-4
     # data
     parser.add_argument('--train_file', default=TRAIN_FILE_DEFAULT, type=str, help='Training dataset file')
     parser.add_argument('--val_file',   default=VAL_FILE_DEFAULT, type=str, help='Validation dataset file')

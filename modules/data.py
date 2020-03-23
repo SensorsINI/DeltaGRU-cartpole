@@ -32,6 +32,27 @@ class Dataset(data.Dataset):
         return X, y
 
 
+def normalize(dat, mean, std):
+    dat= (dat - mean) / std
+    return dat
+
+def unnormalize(dat, mean, std):
+    dat= dat * std + mean
+    return dat
+
+def computeNormalization(dat: numpy.array):
+    # Collect desired prediction
+    # All terms are weighted equally by the loss function (either L1 or L2),
+    # so we need to make sure that we don't have values here that are too different in range
+    # Since the derivatives are computed on normalized data, but divided by the delta time in ms,
+    # we need to normalize the derivatives too. (We include the delta time to make more physical units of time
+    # so that the values don't change with different sample rate.)
+    n = dat.shape[0] * dat.shape[1] # num_samples * seq_length
+    m = np.mean(dat.reshape(n, -1), 0)
+    s = np.std(dat.reshape(n, -1), 0)
+    m[0]=s[0]=m[1]=s[1]=0 # handle some things specially, like sin/cos that should not be touched
+    return m,s
+
 def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med_filt=3):
     '''
     Loads dataset from CSV file
@@ -46,13 +67,12 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med
         medfilt: median filter window, 0 to disable
 
     Returns:
-        Normalized torch.Tensor(data).float() tensors
+        Unnormalized torch.Tensor(data).float() tensors
         input_data:  indexed by [sample, sequence, # sensor inputs * cw_len]
         label_data:  indexed by [sample, sequence, # output sensor values * pw_len]
         mean_train_data, std_train_data, mean_target_data, std_target_data: the means and stds of training and target data
 
         The last dimension of input_data and label_data is organized by all sensors for sample0, all sensors for sample1, .....all sensors for sampleN
-        Eech sensor dimension is indpendently normalized by it mean and std so that it is zero centered with std=1
     '''
 
     # Load dataframe
@@ -85,24 +105,8 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med
     # compute temporal derivatives from state data
     averageDeltaTMs=deltaTimeMs.mean() # TODO this is approximate derivative since sample rate varied a bit around 5ms
     # TODO consider using a better controlled derivative that enforces e.g. total variation constraint
-    # derivative is compute
-
-    # dAngle=np.gradient(angle,averageDeltaTMs)
     actualMotorCmd = df.actualMotorCmd.to_numpy() # zero-centered motor speed command
-    
-    # Min-Max Normalize TODO don't do this since main.py already normalized training and labels for training and test using mean/std
-    # def normalize_min_max(x, x_min, x_max):
-    #     return (x - x_min)/(x_max - x_min)
-    # angle_min = np.amin(angle)
-    # angle_max = np.amax(angle)
-    # angle = normalize_min_max(angle, angle_min, angle_max)
-    # position_min = np.amin(position)
-    # position_max = np.amax(position)
-    # position = normalize_min_max(position, position_min, position_max)
-    # actualMotorCmd_min = np.amin(actualMotorCmd)
-    # actualMotorCmd_max = np.amax(actualMotorCmd)
-    # actualMotorCmd = normalize_min_max(actualMotorCmd, actualMotorCmd_min, actualMotorCmd_max)
-    
+
     # Derive Other Data
     # dAngle = np.gradient(angle,averageDeltaTMs)
     # ddAngle = np.gradient(dAngle, edge_order=1)  # same for accelerations
@@ -112,19 +116,6 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med
     ddSinAngle = np.gradient(dSinAngle, averageDeltaTMs)
     dPosition = np.gradient(position, averageDeltaTMs)
     ddPosition = np.gradient(dPosition, edge_order=1)
-
-    # Data  We never use this and it consumes a lot of memory
-    # all_data.append(time)
-    # all_data.append(sinAngle)
-    # all_data.append(cosAngle)
-    # all_data.append(dSinAngle)
-    # all_data.append(dCosAngle)
-    # all_data.append(ddSinAngle)
-    # all_data.append(ddCosAngle)
-    # all_data.append(position)
-    # all_data.append(dPosition)
-    # all_data.append(ddPosition)
-    # all_data.append(actualMotorCmd)
 
     # Train Data
     # train_data.append(angle)
@@ -141,15 +132,7 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med
     # train_data.append(ddPosition)
     train_data.append(actualMotorCmd)
 
-    # all_data = np.vstack(all_data).transpose()
     train_data = np.vstack(train_data).transpose()   # train_data indexed by [sample, input sensor/control]
-
-    # Collect desired prediction
-    # All terms are weighted equally by the loss function (either L1 or L2),
-    # so we need to make sure that we don't have values here that are too different in range
-    # Since the derivatives are computed on normalized data, but divided by the delta time in ms,
-    # we need to normalize the derivatives too. (We include the delta time to make more physical units of time
-    # so that the values don't change with different sample rate.)
 
     target = []
     target.append(sinAngle)
@@ -162,15 +145,16 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med
     target.append(dPosition)
     target = np.vstack(target).transpose()   # target indexed by [sample, sensor]
 
-    # Get sample
-    # test_sample = all_data # indexed by [sampleNumber, dataType]
-    # print("Test Sample Size: ", ampro_test_sample.shape)
     train_sample = train_data[1:-1, :]  # TODO why throw away first and last time point, maybe CSV file incomplete
     # print("Sample Size: ", train_data.shape)
     # print("Train Max: ", np.amax(train_sample))
     # print("Train Min: ", np.amin(train_sample))
     # print("Test Max: ", np.amax(train_sample))
     # print("Test Min: ", np.amin(train_sample))
+
+    # compute normalization of data now
+    m_tr, s_tr = computeNormalization(train_data)
+    m_tst, s_tst = computeNormalization(target)
 
     # Print Collected Data Information
     print('###################################################################################\n\r'
@@ -209,27 +193,8 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med
     # print("Angle Min:   ", angle_min)
     # print("Angle Max:   ", angle_max)
 
-    # To compute normalization,
-    # reshape the data_new tensor from [sample, sequence, # sensor inputs * cw_len] to [sample*sequence, # sensor inputs*cw_len]
-    # torch.mean(data_new, 0)
-    # calculates the mean of elements along the first dimension
-    # The result is a [#sensor_inputs*cw_len] vector containing the mean of every feature in the data_new
-
-    
-
     # Convert Numpy Arrays to PyTorch Tensors
     data_new = torch.from_numpy(data_new).float()
     target_new = torch.from_numpy(target_new).float()
 
-    n = target_new.size(0) * target_new.size(1)
-    mean_target_data = torch.mean(target_new.reshape(n, -1), 0)
-    std_target_data = torch.std(target_new.reshape(n, -1), 0)
-    label_data_norm = (target_new - mean_target_data) / std_target_data
-    
-    n=data_new.size(0) * data_new.size(1)
-    mean_train_data = torch.mean(data_new.reshape(n, -1), 0)
-    std_train_data = torch.std(data_new.reshape(n, -1), 0)
-    train_data_norm = (data_new - mean_train_data) / std_train_data
-
-    return train_data_norm, label_data_norm, mean_train_data, std_train_data, mean_target_data, std_target_data
-    # return test_sample, data_new, target_new
+    return data_new, target_new, m_tr, s_tr, m_tst, s_tst

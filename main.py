@@ -13,7 +13,7 @@ import numpy as np
 import modules.models as models
 from modules.util import quantizeTensor, timeSince, quantize_rnn, save_normalization
 from modules.log import write_log
-from modules.data import load_data, Dataset
+from modules.data import load_data, Dataset, normalize, unnormalize
 from modules.deltarnn import get_temporal_sparsity
 from modules import parseArgs
 
@@ -115,6 +115,14 @@ if __name__ == '__main__':
     test_data, test_labels, _, _, _, _ = load_data(test_file, cw_plen, cw_flen, pw_len, pw_off, seq_len, args.stride, args.med_filt)
 
     save_normalization(savepath,train_mean,train_std)
+
+    # normalize all data by training set values
+    train_data=normalize(train_data,train_mean,train_std)
+    train_labels=normalize(train_labels,label_mean, label_std)
+    dev_data=normalize(dev_data,train_mean,train_std)
+    dev_labels=normalize(dev_labels,label_mean, label_std)
+    test_data=normalize(test_data,train_mean,train_std)
+    test_labels=normalize(test_labels,label_mean, label_std)
 
       # Get number of classes
     num_classes = train_labels.size(-1)
