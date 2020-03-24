@@ -28,12 +28,12 @@ if __name__ == '__main__':
     pw_off = args.pw_off  # Length of future in timesteps to predict
     pw_idx = args.pw_idx  # Index of timestep in the prediction window
     seq_len = args.seq_len  # Sequence length
-    test_file=args.test_file
+    test_file = args.test_file
 
     # Plot Settings
     # start_test_tstep = args.start_test_tstep
     # num_test_tstep = args.num_test_tstep
-    plot_len = args.plot_len # Number of timesteps in the plot window
+    plot_len = args.plot_len  # Number of timesteps in the plot window
 
     # Whether test retrain model
     retrain = 0
@@ -64,24 +64,25 @@ if __name__ == '__main__':
     ########################################################
     # Create Dataset
     ########################################################
-    test_data, test_labels,_,_,_,_ = load_data(test_file, cw_plen, cw_flen, pw_len, pw_off, seq_len, args.stride, args.med_filt)
-    # test_data: input sensor and control signals
-    # test_labels: what we want to predict (the sensor data into the future)
+    test_features, test_targets, test_actual, _, _, _, _ = load_data(test_file, cw_plen, cw_flen, pw_len, pw_off, seq_len, args.stride,
+                                                   args.med_filt)
+    test_features = test_features[:, 0, :]  # Get a continuous time series
+    # test_features: input sensor and control signals
+    # test_targets: what we want to predict (the sensor data into the future)
     # both are torch tensors
 
     # Get Mean and Std of Train Data, to use normalize test data and unnormalize it for plotting
-    mean_train_data, std_train_data, mean_label_data, std_label_data=load_normalization(savepath) # we need to unnormalize the predictions to get the predictions in input units
-    test_data_norm = normalize(test_data, mean_train_data, std_train_data)
-    test_labels_norm = normalize(test_labels, mean_label_data, std_label_data)
+    mean_train_features, std_train_features, mean_train_targets, std_train_targets \
+        = load_normalization(savepath)  # we need to unnormalize the predictions to get the predictions in input units
+    test_features_norm = normalize(test_features, mean_train_features, std_train_features)
+    test_targets_norm = normalize(test_targets, mean_train_targets, std_train_targets)
 
-    # Get number of classes
-    rnn_output_size = test_labels.size(-1)
     print('\n###################################################################################\n\r'
           '# Dataset\n\r'
           '###################################################################################')
     print("Dim: (num_sample, look_back_len, feat_size)")
-    print("Test data size:         ", test_data_norm.size())
-    print("Test prediction size:   ", test_labels_norm.size())
+    print("Test data size:         ", test_features_norm.shape)
+    print("Test prediction size:   ", test_targets_norm.shape)
     print("\n\r")
 
     ########################################################
@@ -90,8 +91,8 @@ if __name__ == '__main__':
     print("Loading network...")
 
     # Network Dimension
-    rnn_inp_size = test_data_norm.size(-1)
-    rnn_output_size = test_labels_norm.size(-1)
+    rnn_inp_size = test_features_norm.shape[-1]
+    rnn_output_size = test_targets_norm.shape[-1]
     print("RNN input size:        ", rnn_inp_size)
     print("RNN output size:       ", rnn_output_size)
 
@@ -127,8 +128,8 @@ if __name__ == '__main__':
     net.load_state_dict(new_state_dict)
 
     # Move network to GPU
-    if args.cuda:
-        net = net.cuda()
+    # if args.cuda:
+    #     net = net.cuda()
 
     ########################################################
     ########################################################
@@ -136,25 +137,29 @@ if __name__ == '__main__':
     print("Starting inference...")
 
     ########################################################################
-    # test_data = test_data[:, 0, :].unsqueeze(1) # raw data in a time series, unsqueeze keeps as 3d
-    # test_data = test_data.transpose(0, 1) # put seq len as first, sample as 2nd, to normalize
-    # test_data_norm = (test_data - mean_train_data) / std_train_data # to input to RNN for prediction
+    # actual_data = test_features[:, 0, :]  # Prepare actual data
+    # test_features = test_features.transpose(0, 1) # put seq len as first, sample as 2nd, to normalize
+    # test_features_norm = (test_features - mean_train_features) / std_train_features # to input to RNN for prediction
     # # test_sample_norm = quantizeTensor(test_sample_norm, aqi, aqf, 1) # TODO add check for quantization
-    test_sample_norm = test_data_norm.transpose(0, 1) # flip for input to RNN
-    if args.cuda:
-        test_sample_norm = test_data_norm.cuda() # move data to cuda
+    test_sample_norm = torch.from_numpy(test_features_norm).float()  # Convert Numpy to PyTorch
+    test_sample_norm = test_sample_norm.unsqueeze(1)  # Convert Numpy to PyTorch
+    # test_sample_norm = test_sample_norm.transpose(0, 1)  # flip for input to RNN
+    # if args.cuda:
+    #     test_sample_norm = test_sample_norm.cuda()  # move data to cuda
 
-    net = net.eval() # set to eval mode
-    y_pred, _, _ = net(test_sample_norm) # run samples through RNN, results in
-    y_pred = y_pred.squeeze().cpu().detach().numpy() # Convert tensor to numpy mat [sample, state]
+    net = net.eval()  # set to eval mode
+    y_pred, _, _ = net(test_sample_norm)  # run samples through RNN, results in
+    y_pred = y_pred.squeeze().cpu().detach().numpy()  # Convert tensor to numpy mat [sample, state]
+    y_pred = unnormalize(y_pred, mean_train_targets, std_train_targets)  # Unnormalize network prediction
 
-    print('###################################################################################\n\r'
-          '# Evaluation Information\n\r'
-          '###################################################################################')
-
-    print("Test Sample Size:      ", test_sample_norm.size())
-    print("Test Output Size:      ", y_pred.shape)
-    print("Test Real Data Size:   ", test_labels.shape)
+    # print('###################################################################################\n\r'
+    #       '# Evaluation Information\n\r'
+    #       '###################################################################################')
+    #
+    # print("Test Sample Size:  ", test_sample_norm.size())
+    # print("Test Output Size:  ", y_pred.shape)
+    # print("Actual Data Size:  ", actual_data.shape)
+    # print("Test Label Size:   ", test_targets.shape)
 
     ########################################################################
     # Draw a plot of RNN input and output
@@ -163,18 +168,21 @@ if __name__ == '__main__':
     num_test_tstep = test_sample_norm.size(0)
 
     # Get Ground Truth
-    t_curr = cw_plen  # Put the initial timestep at the first timestep after the first possible context window
+    t_start = cw_plen  # Put the initial timestep at the first timestep after the first possible context window
     t_start = 0
-    ts_actual = np.arange(t_start, t_start + num_test_tstep) # timesteps to show actual input data
-    angle_actual = test_data[:, ts_actual, 0].squeeze() # is normalized data of input angle
-    position_actual = test_data[:, ts_actual, 3].squeeze() # normalized position
-    # Get Angle Prediction
-    ts_pred = np.arange(t_curr + pw_off, t_curr + pw_off + num_test_tstep) # prediction timesteps, not quite the same since there is offset and window
-    y_pred = np.reshape(y_pred, (num_test_tstep, pw_len, -1))  # ???? TODO why doesn't this use the ts_pred?? Reshape to add the feature dimension (timestep, pw_len, feat)
-    sin_pred = np.squeeze(y_pred[t_start:t_start + num_test_tstep, 0, 0]) # TODO same here, why not use ts_pred?
+    ts_actual = np.arange(t_start, t_start + num_test_tstep)  # timesteps to show actual input data
+    angle_actual = test_actual[ts_actual, 0].squeeze()  # is normalized data of input angle
+    position_actual = test_actual[ts_actual, 1].squeeze()  # normalized position
+
+    # Get Prediction
+    ts_pred = np.arange(t_start + pw_off,
+                        t_start + pw_off + num_test_tstep)  # prediction timesteps, not quite the same since there is offset and window
+    y_pred = np.reshape(y_pred, (num_test_tstep, pw_len,
+                                 -1))  # ???? TODO why doesn't this use the ts_pred?? Reshape to add the feature dimension (timestep, pw_len, feat)
+    sin_pred = np.squeeze(y_pred[t_start:t_start + num_test_tstep, 0, 0])  # TODO same here, why not use ts_pred?
     cos_pred = np.squeeze(y_pred[t_start:t_start + num_test_tstep, 0, 1])
-    angle_pred = np.arctan2(sin_pred, cos_pred) # compute angle from sin and cos
-    position_pred = y_pred[t_start:t_start + num_test_tstep, 0, 1] # prediction of normalized position
+    angle_pred = np.arctan2(sin_pred, cos_pred)  # compute angle from sin and cos
+    position_pred = y_pred[t_start:t_start + num_test_tstep, 0, 4]  # prediction of normalized position
 
     # Plot angle error
     fig1, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 8))
@@ -197,8 +205,6 @@ if __name__ == '__main__':
     ax2.tick_params(axis='both', which='major', labelsize=20)
     ax2.legend(fontsize=14)
 
-    plt.show()
-
     ########################################################################
     # Slider
     ########################################################################
@@ -216,15 +222,16 @@ if __name__ == '__main__':
     ts_context = np.arange(t_start, t_start + cw_plen)
     # TODO angle from sin/cos actual and prediction
     ts_pred = np.arange(t_curr + pw_off, t_curr + pw_off + pw_len)
-    sin_context = test_data[:, t_start:t_start + cw_plen, 0].squeeze()
-    cos_context = test_data[:, t_start:t_start + cw_plen, 0].squeeze()
+    angle_actual = test_actual[t_start:t_start + plot_len, 0].squeeze()
+    sin_context = test_features[t_start:t_start + cw_plen, 0].squeeze()
+    cos_context = test_features[t_start:t_start + cw_plen, 1].squeeze()
     angle_context = np.arctan2(sin_context, cos_context)
     sin_pred = np.squeeze(y_pred[t_start, :, 0])
-    cos_pred = np.squeeze(y_pred[t_start, :, 0])
+    cos_pred = np.squeeze(y_pred[t_start, :, 1])
     angle_pred = np.arctan2(sin_pred, cos_pred)
-    position_actual = test_data[:, t_start:t_start + plot_len, 3].squeeze() # shouldl already be in radians
-    position_context = test_data[:, t_start:t_start + cw_plen, 3].squeeze() # should already be in radians
-    position_pred = y_pred[t_start, :, 1]
+    position_actual = test_actual[t_start:t_start + plot_len, 1].squeeze()  # shouldl already be in radians
+    position_context = test_features[t_start:t_start + cw_plen, 4].squeeze()  # should already be in radians
+    position_pred = y_pred[t_start, :, 4]
 
     # Draw Plots
     plot1_actual, = ax1.plot(ts_actual, position_actual, 'k.', lw=3, label='Ground Truth')
@@ -235,36 +242,42 @@ if __name__ == '__main__':
     plot2_pred, = ax2.plot(ts_pred, angle_pred, 'r-', lw=2, label='Prediction')
 
     ax1.set_ylabel("Pos. Error (rad)", fontsize=14)
-    ax1.set_yticks(np.arange(-0.1, 1.1, 0.2))
+    ax1.set_yticks(np.arange(-0.1, 0.4, 0.1))
     ax1.legend(fontsize=12)
     ax2.set_ylabel("Ang. Error (rad)", fontsize=14)
     ax2.set_xlabel('Timestep (200 Hz)', fontsize=14)
-    ax2.set_yticks(np.arange(-0.1, 1.1, 0.2))
+    ax2.set_yticks(np.arange(-0.04, 0.05, 0.02))
     ax2.legend(fontsize=12)
     ax1.margins(x=0)
 
     axcolor = 'lightgoldenrodyellow'
     axtstep = plt.axes([0.15, 0.15, 0.75, 0.03], facecolor=axcolor)
 
-
     # Sliders
     a0 = 5
     f0 = 3
     delta_step = 1.0
-    ststep = Slider(axtstep, 'Timestep', cw_plen, num_test_tstep-pw_len-pw_off-plot_len, valinit=f0, valstep=delta_step)
+    ststep = Slider(axtstep, 'Timestep', cw_plen, num_test_tstep - pw_len - pw_off - plot_len, valinit=f0,
+                    valstep=delta_step)
+
 
     def update(val):
-        t_curr = int(ststep.val)  # Put the initial timestep at the first timestep after the first possible context window
-        t_plot = t_curr - cw_plen
-        t_actual = np.arange(t_plot, t_plot + plot_len)
-        t_context = np.arange(t_plot, t_plot + cw_plen)
+        t_curr = int(
+            ststep.val)  # Put the initial timestep at the first timestep after the first possible context window
+        t_start = t_curr - cw_plen
+        t_actual = np.arange(t_start, t_start + plot_len)
+        t_context = np.arange(t_start, t_start + cw_plen)
         t_pred = np.arange(t_curr + pw_off, t_curr + pw_off + pw_len)
-        angle_actual = test_data[:,t_plot:t_plot + plot_len,0].squeeze() # should already be in radians
-        angle_context = test_data[:,t_plot:t_plot + cw_plen,0].squeeze() # should already be in radians
-        angle_pred = np.squeeze(y_pred[t_plot, :, 0])
-        position_actual = test_data[:,t_plot:t_plot + plot_len,3].squeeze() # should already be in radians
-        position_context = test_data[:,t_plot:t_plot + cw_plen,3].squeeze() # should already be in radians
-        position_pred = y_pred[t_plot, :, 1]
+        angle_actual = test_actual[t_start:t_start + plot_len, 0].squeeze()
+        sin_context = test_features[t_start:t_start + cw_plen, 0].squeeze()
+        cos_context = test_features[t_start:t_start + cw_plen, 1].squeeze()
+        angle_context = np.arctan2(sin_context, cos_context)
+        sin_pred = np.squeeze(y_pred[t_start, :, 0])
+        cos_pred = np.squeeze(y_pred[t_start, :, 1])
+        angle_pred = np.arctan2(sin_pred, cos_pred)
+        position_actual = test_actual[t_start:t_start + plot_len, 1].squeeze()  # shouldl already be in radians
+        position_context = test_features[t_start:t_start + cw_plen, 4].squeeze()  # should already be in radians
+        position_pred = y_pred[t_start, :, 4]
         plot1_actual.set_xdata(t_actual)
         plot1_context.set_xdata(t_context)
         plot1_pred.set_xdata(t_pred)
@@ -278,8 +291,8 @@ if __name__ == '__main__':
         plot2_context.set_ydata(angle_context)
         plot2_pred.set_ydata(angle_pred)
         # ax1.set_xticks(t_actual)
-        ax1.set_xlim(xmin=t_plot, xmax=t_plot + plot_len)
-        ax2.set_xlim(xmin=t_plot, xmax=t_plot + plot_len)
+        ax1.set_xlim(xmin=t_start, xmax=t_start + plot_len)
+        ax2.set_xlim(xmin=t_start, xmax=t_start + plot_len)
         # ax2.set_xticks(t_actual)
 
 
@@ -288,8 +301,11 @@ if __name__ == '__main__':
     resetax = plt.axes([0.8, 0.025, 0.1, 0.04])
     button = Button(resetax, 'Reset', color=axcolor, hovercolor='0.975')
 
+
     def reset(event):
         ststep.reset()
+
+
     button.on_clicked(reset)
 
     plt.show()

@@ -37,18 +37,18 @@ if __name__ == '__main__':
 
     # Hyperparameters
     stride = args.stride
-    cw_plen = args.cw_plen            # Length of history in timesteps used to train the network
-    cw_flen = args.cw_flen            # Length of future in timesteps to predict
-    pw_len = args.pw_len              # Offset of future in timesteps to predict
-    pw_off = args.pw_off              # Length of future in timesteps to predict
-    seq_len = args.seq_len            # Sequence length
-    lr = args.lr                      # Learning rate
-    batch_size = args.batch_size      # Mini-batch size
-    num_epochs = args.num_epochs      # Number of epoches to train the network
+    cw_plen = args.cw_plen  # Length of history in timesteps used to train the network
+    cw_flen = args.cw_flen  # Length of future in timesteps to predict
+    pw_len = args.pw_len  # Offset of future in timesteps to predict
+    pw_off = args.pw_off  # Length of future in timesteps to predict
+    seq_len = args.seq_len  # Sequence length
+    lr = args.lr  # Learning rate
+    batch_size = args.batch_size  # Mini-batch size
+    num_epochs = args.num_epochs  # Number of epoches to train the network
     mode = args.mode
-    train_file=args.train_file
-    val_file=args.val_file
-    test_file=args.test_file
+    train_file = args.train_file
+    val_file = args.val_file
+    test_file = args.test_file
     qa = args.qa
     qw = args.qw
 
@@ -83,7 +83,7 @@ if __name__ == '__main__':
     wqf = args.wqf
     # Save and Log
     str_target_variable = 'cart-pole'
-    save_path={}
+    save_path = {}
     if mode == 0:  # Pretrain on GRU
         str_net_arch = str(num_rnn_layers) + 'L-' + str(rnn_hid_size) + 'H-'
         str_windows = str(cw_plen) + 'CWP-' + str(cw_flen) + 'CWF-' + str(pw_len) + 'PWL-' + str(pw_off) + 'PWO-'
@@ -102,71 +102,123 @@ if __name__ == '__main__':
         str_net_arch = str(num_rnn_layers) + 'L-' + str(rnn_hid_size) + 'H-'
         str_windows = str(cw_plen) + 'CWP-' + str(cw_flen) + 'CWF-' + str(pw_len) + 'PWL-' + str(pw_off) + 'PWO-'
         filename = str_net_arch + str(rnn_type) + '-' + str_windows + str_target_variable
-        pretrain_model_path = './save/' + str_net_arch + 'GRU' + '-' + str_windows + str_target_variable + '.pt' #TODO probably a bug in this filename, has extra parts
+        pretrain_model_path = './save/' + str_net_arch + 'GRU' + '-' + str_windows + str_target_variable + '.pt'  # TODO probably a bug in this filename, has extra parts
         logpath = './log/' + filename + '_' + str(th_x) + '.csv'
         savepath = './save/' + filename + '_' + str(th_x) + '.pt'
-
 
     ########################################################
     # Create Dataset
     ########################################################
-    train_data, train_labels, train_mean, train_std, label_mean, label_std = load_data(train_file, cw_plen, cw_flen, pw_len, pw_off, seq_len, args.stride, args.med_filt)
-    dev_data, dev_labels, _, _, _, _ = load_data(val_file, cw_plen, cw_flen, pw_len, pw_off, seq_len, args.stride, args.med_filt)
-    test_data, test_labels, _, _, _, _ = load_data(test_file, cw_plen, cw_flen, pw_len, pw_off, seq_len, args.stride, args.med_filt)
+    train_features, train_targets, _, mean_train_features, std_train_features, mean_train_targets, std_train_targets = \
+        load_data(train_file, cw_plen, cw_flen, pw_len, pw_off, seq_len, args.stride, args.med_filt)
+    dev_features, dev_targets, _, _, _, _, _ = \
+        load_data(val_file, cw_plen, cw_flen, pw_len, pw_off, seq_len, args.stride, args.med_filt)
+    test_features, test_targets, _, _, _, _, _ = \
+        load_data(test_file, cw_plen, cw_flen, pw_len, pw_off, seq_len, args.stride, args.med_filt)
 
-    save_normalization(savepath,train_mean,train_std, label_mean, label_std)
+    save_normalization(savepath, mean_train_features, std_train_features, mean_train_targets, std_train_targets)
 
     # normalize all data by training set values
-    train_data=normalize(train_data,train_mean,train_std)
-    train_labels=normalize(train_labels,label_mean, label_std)
-    dev_data=normalize(dev_data,train_mean,train_std)
-    dev_labels=normalize(dev_labels,label_mean, label_std)
-    test_data=normalize(test_data,train_mean,train_std)
-    test_labels=normalize(test_labels,label_mean, label_std)
+    train_features = normalize(train_features, mean_train_features, std_train_features)
+    train_targets = normalize(train_targets, mean_train_targets, std_train_targets)
+    dev_features = normalize(dev_features, mean_train_features, std_train_features)
+    dev_targets = normalize(dev_targets, mean_train_targets, std_train_targets)
+    test_features = normalize(test_features, mean_train_features, std_train_features)
+    test_targets = normalize(test_targets, mean_train_targets, std_train_targets)
 
+    print("train_features: ", train_features.shape)
+    print("mean_train_features: ", mean_train_features)
+    print("std_train_features: ", std_train_features)
 
     # Convert Numpy Arrays to PyTorch Tensors
-    train_data = torch.from_numpy(train_data).float()
-    train_labels = torch.from_numpy(train_labels).float()
-    dev_data=torch.from_numpy(dev_data).float()
-    dev_labels=torch.from_numpy(dev_labels).float()
-    test_data=torch.from_numpy(test_data).float()
-    test_labels=torch.from_numpy(test_labels).float()
+    train_features = torch.from_numpy(train_features).float()
+    train_targets = torch.from_numpy(train_targets).float()
+    dev_features = torch.from_numpy(dev_features).float()
+    dev_targets = torch.from_numpy(dev_targets).float()
+    test_features = torch.from_numpy(test_features).float()
+    test_targets = torch.from_numpy(test_targets).float()
 
     # Create PyTorch Dataset
-    train_set = Dataset(train_data, train_labels, mode)
-    dev_set = Dataset(dev_data, dev_labels, mode)
-    test_set = Dataset(test_data, test_labels, mode)
+    train_set = Dataset(train_features, train_targets, mode)
+    dev_set = Dataset(dev_features, dev_targets, mode)
+    test_set = Dataset(test_features, test_targets, mode)
 
     # Create PyTorch dataloaders for train and dev set
     train_generator = data.DataLoader(dataset=train_set, batch_size=batch_size, shuffle=True)
-    dev_generator = data.DataLoader(dataset=dev_set, batch_size=512, shuffle=True)
-    test_generator = data.DataLoader(dataset=test_set, batch_size=512, shuffle=True)
+    dev_generator = data.DataLoader(dataset=dev_set, batch_size=512, shuffle=False)
+    test_generator = data.DataLoader(dataset=test_set, batch_size=512, shuffle=False)
 
-     # Get number of classes
-    num_classes = train_labels.size(-1)
+    # Get number of classes
+    num_classes = train_targets.size(-1)
     print("\n")
 
     print('###################################################################################\n\r'
-          '# Dataset\n\r'
+          '# Dataset (Normalized)\n\r'
           '###################################################################################')
-    print("Dim: (num_sample, look_back_len, feat_size)")
-    print("Train data size:  ", train_data.size())
-    print("Train label size: ", train_labels.size())
-    print("Test data size:   ", dev_data.size())
-    print("Test label size:  ", dev_labels.size())
+    print("# Train Data  | Size:   %s                            \n"
+          "#             | Min:    %f                            \n"
+          "#             | Mean:   %f                            \n"
+          "#             | Median: %f                            \n"
+          "#             | Max:    %f                            \n"
+          "#             | Std:    %f                            \n"
+          "#-----------------------------------------------------\n"
+          "# Dev   Data  | Size:   %s                            \n"
+          "#             | Min:    %f                            \n"
+          "#             | Mean:   %f                            \n"
+          "#             | Median: %f                            \n"
+          "#             | Max:    %f                            \n"
+          "#             | Std:    %f                            \n"
+          "#-----------------------------------------------------\n"
+          "# Test  Data  | Size:   %s                            \n"
+          "#             | Min:    %f                            \n"
+          "#             | Mean:   %f                            \n"
+          "#             | Median: %f                            \n"
+          "#             | Max:    %f                            \n"
+          "#             | Std:    %f                            \n"
+          "#-----------------------------------------------------\n"
+          "# Train Label | Size:   %s                            \n"
+          "#             | Min:    %f                            \n"
+          "#             | Mean:   %f                            \n"
+          "#             | Median: %f                            \n"
+          "#             | Max:    %f                            \n"
+          "#             | Std:    %f                            \n"
+          "#-----------------------------------------------------\n"
+          "# Dev   Label | Size:   %s                            \n"
+          "#             | Min:    %f                            \n"
+          "#             | Mean:   %f                            \n"
+          "#             | Median: %f                            \n"
+          "#             | Max:    %f                            \n"
+          "#             | Std:    %f                            \n"
+          "#-----------------------------------------------------\n"
+          "# Test  Label | Size:   %s                            \n"
+          "#             | Min:    %f                            \n"
+          "#             | Mean:   %f                            \n"
+          "#             | Median: %f                            \n"
+          "#             | Max:    %f                            \n"
+          "#             | Std:    %f                            \n"
+          "#-----------------------------------------------------\n"
+          % (str(list(train_features.size())), train_features.min(), train_features.mean(), train_features.median(), train_features.max(), train_features.std(),
+             str(list(dev_features.size())), dev_features.min(), dev_features.mean(), dev_features.median(), dev_features.max(), dev_features.std(),
+             str(list(test_features.size())), test_features.min(), test_features.mean(), test_features.median(), test_features.max(), test_features.std(),
+             str(list(train_targets.size())), train_targets.min(), train_targets.mean(), train_targets.median(), train_targets.max(), train_targets.std(),
+             str(list(dev_targets.size())), dev_targets.min(), dev_targets.mean(), dev_targets.median(), dev_targets.max(), dev_targets.std(),
+             str(list(test_targets.size())), test_targets.min(), test_targets.mean(), test_targets.median(), test_targets.max(), test_targets.std()
+            )
+          )
+
     print("\n\r")
-    # Data Range
-    angle_min = 0
-    angle_max = 2 * math.pi
-    position_min = -655
-    position_max = 1644
+
+    # # Data Range
+    # angle_min = 0
+    # angle_max = 2 * math.pi
+    # position_min = -655
+    # position_max = 1644
 
     print('###################################################################################\n\r'
           '# Network\n\r'
           '###################################################################################')
     # Network Dimension
-    rnn_inp_size = train_data.size(-1)
+    rnn_inp_size = train_features.size(-1)
     print("rnn_inp_size             = ", rnn_inp_size)
     print("rnn_hid_size             = ", rnn_hid_size)
     print("num_rnn_layers           = ", num_rnn_layers)
@@ -208,7 +260,8 @@ if __name__ == '__main__':
         net.load_state_dict(new_state_dict)
 
     # Move network to GPU
-    if args.cuda:  net = net.cuda()
+    if args.cuda:
+        net = net.cuda()
 
     # Print parameter count
     params = 0
@@ -272,7 +325,7 @@ if __name__ == '__main__':
         train_batches = 0
         sp_dx = 0
         sp_dh = 0
-        net.set_quantize_act(1)  # Enable quantization in activation (only applies to DeltaGRU)
+        net.set_quantize_act(0)  # Enable quantization in activation (only applies to DeltaGRU)
         net.set_eval_sparsity(0)  # Don't evaluate sparsity for faster training
 
         for batch, labels in tqdm(train_generator):  # Iterate through batches
@@ -311,7 +364,7 @@ if __name__ == '__main__':
             train_batches += 1  # Accumulate count so we can calculate mean later
 
         # Quantize the RNN weights after every epoch
-        net = quantize_rnn(net, wqi, wqf, 1)
+        net = quantize_rnn(net, wqi, wqf, qw)
 
         # Evaluate Weight Sparsity
         n_nonzero_weight_elem = 0
@@ -327,7 +380,7 @@ if __name__ == '__main__':
         # Validation - Iterate batches
         ###########################################################################################################
         net = net.eval()
-        net.set_quantize_act(1)
+        net.set_quantize_act(qa)
         net.set_eval_sparsity(1)  # Enable sparsity evaluation
 
         dev_loss = 0
@@ -358,7 +411,7 @@ if __name__ == '__main__':
         # Test - Iterate batches
         ###########################################################################################################
         net = net.eval()
-        net.set_quantize_act(1)
+        net.set_quantize_act(qa)
         net.set_eval_sparsity(1)  # Enable sparsity evaluation
 
         nz_dx = 0
@@ -436,7 +489,6 @@ if __name__ == '__main__':
         dict_log['sp_W'] = sp_W
         dict_log['sp_dx'] = sp_dx
         dict_log['sp_dh'] = sp_dh
-
 
         print('Epoch: %3d of %3d | '
               'Time: %s | '
