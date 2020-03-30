@@ -181,7 +181,7 @@ if __name__ == '__main__':
     position_pred = np.squeeze(y_pred[t_start:t_start + num_test_tstep, 0, target_dict['position']])  # prediction of normalized position
 
     # Plot angle error
-    fig1, axs = plt.subplots(3, 1, figsize=(14, 8))
+    fig1, axs = plt.subplots(3, 1, figsize=(14, 8), sharex=True) # share x axis so zoom zooms all plots
     # axs[0].set_title('(a)', fontsize=24)
     axs[0].set_ylabel("angle err (rad)", fontsize=18)
     axs[0].plot(ts_actual, angle_actual, 'k', markersize=12, label='Ground Truth')
@@ -251,17 +251,16 @@ if __name__ == '__main__':
     plot3_actual, =     axs[2].plot(ts_sliderplot, motor_actual, 'k', lw=3, label='Motor')
 
     axs[0].set_ylabel("Position (norm)", fontsize=14)
-    axs[0].set_yticks(np.arange(-0.1, 0.4, 0.1))
+    # axs[0].set_ylim((-2,2))
     axs[0].legend(fontsize=12)
-    axs[0].margins(x=0)
+    # axs[0].margins(x=0)
 
     axs[1].set_ylabel("Ang. Error (rad)", fontsize=14)
-    axs[1].set_yticks(np.arange(-0.04, 0.05, 0.02))
+    # axs[1].set_ylim((-0.1, 0.1)) # 0.1 is 5.7 deg
     axs[1].legend(fontsize=12)
 
-    axs[2].set_ylabel("motor (norm)", fontsize=14)
+    axs[2].set_ylabel("motor (PWM)", fontsize=14)
     axs[2].set_xlabel('Timestep (200 Hz)', fontsize=14)
-    axs[2].set_yticks(np.arange(-0.04, 0.05, 0.02))
     axs[2].legend(fontsize=12)
 
     axcolor = 'lightgoldenrodyellow'
@@ -281,6 +280,7 @@ if __name__ == '__main__':
         ts_sliderplot = np.arange(t_start, t_start + plot_len)
         ts_context = np.arange(t_start, t_start + cw_plen)
         ts_pred = np.arange(t_curr + pw_off, t_curr + pw_off + pw_len)
+
         angle_actual = test_actual[ts_sliderplot, actual_dict['angle']].squeeze()
         angle_context = test_actual[ts_context, actual_dict['angle']].squeeze()
         sin_pred = np.squeeze(y_pred[t_start, :, target_dict['sinAngle']])
@@ -297,20 +297,22 @@ if __name__ == '__main__':
         plot1_actual.set_ydata(position_act)
         plot1_context.set_ydata(position_context)
         plot1_pred.set_ydata(position_pred)
+
         plot2_actual.set_xdata(ts_sliderplot)
         plot2_context.set_xdata(ts_context)
         plot2_pred.set_xdata(ts_pred)
         plot2_actual.set_ydata(angle_actual)
         plot2_context.set_ydata(angle_context)
         plot2_pred.set_ydata(angle_pred)
+
         plot3_actual.set_xdata(ts_sliderplot)
         plot3_actual.set_ydata(motor_actual)
 
-        # ax1.set_xticks(t_actual)
-        axs[0].set_xlim(xmin=t_start, xmax=t_start + plot_len)
-        axs[1].set_xlim(xmin=t_start, xmax=t_start + plot_len)
-        axs[2].set_xlim(xmin=t_start, xmax=t_start + plot_len)
-
+        # https: // stackoverflow.com / questions / 10984085 / automatically - rescale - ylim - and -xlim - in -matplotlib
+        for ax in axs:
+            ax.set_xlim(xmin=t_start, xmax=t_start + plot_len)
+            ax.relim()
+            ax.autoscale_view()
 
     ststep.on_changed(update)
 
