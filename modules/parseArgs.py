@@ -17,6 +17,7 @@ def args():
     parser.add_argument('--val_file',           default=VAL_FILE_DEFAULT, type=str, help='Validation dataset file')
     parser.add_argument('--test_file',          default=TEST_FILE_DEFAULT, type=str, help='Testing dataset file')
     parser.add_argument('--med_filt',           default=5, type=int, help='median filter window length for all data, to remove outliers. Set to 0 to disable')
+    parser.add_argument('--cutoff_hz',          default=20, type=int, help='lowpass filter for sensor inputs, set to 0 to disable')
     #training
     parser.add_argument('--mode',               default=1, type=int,  help='Mode 0 - Pretrain on GRU; Mode 1 - Retrain on GRU; Mode 2 - Retrain on DeltaGRU')
     parser.add_argument('--seed',               default=1, type=int, help='Initialize the random seed of the run (for reproducibility).')

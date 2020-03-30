@@ -100,7 +100,7 @@ def computeNormalization(dat: numpy.array):
     return m, s
 
 
-def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med_filt=MEDFILT_WINDOW, cutoffHz=CUTOFF_HZ):
+def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med_filt=MEDFILT_WINDOW, cutoff_hz=CUTOFF_HZ):
     '''
     Loads dataset from CSV file
     Args:
@@ -148,8 +148,8 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med
     # for control might depend on position of cart
     # position has range < +/-1
 
-    angle=filterData(angle,med_filt,cutoffHz)
-    position=filterData(position,med_filt,cutoffHz)
+    angle=filterData(angle, med_filt, cutoff_hz)
+    position=filterData(position, med_filt, cutoff_hz)
 
     # project angle onto x and y since angle is a rotational variable with 2pi cut that we cannot fit properly and does not represent gravity and lateral acceleration well.
     sinAngle = np.sin(angle)
@@ -160,9 +160,9 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med
     actualMotorCmd = df.actualMotorCmd.to_numpy()  # zero-centered motor speed command
 
     # Derive Other Data
-    sinAngle, dSinAngle, ddSinAngle = filterAndGradients(sinAngle,med_filt,cutoffHz)
-    cosAngle,dCosAngle, ddCosAngle=filterAndGradients(cosAngle,med_filt,cutoffHz)
-    position,dPosition, ddPosition=filterAndGradients(position,med_filt,cutoffHz)
+    sinAngle, dSinAngle, ddSinAngle = filterAndGradients(sinAngle, med_filt, cutoff_hz)
+    cosAngle,dCosAngle, ddCosAngle=filterAndGradients(cosAngle, med_filt, cutoff_hz)
+    position,dPosition, ddPosition=filterAndGradients(position, med_filt, cutoff_hz)
 
     # Features (Train Data)
     raw_features = []

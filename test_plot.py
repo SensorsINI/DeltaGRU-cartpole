@@ -64,7 +64,7 @@ if __name__ == '__main__':
     ########################################################
     # Create Dataset
     ########################################################
-    test_features, test_dict, test_targets,target_dict, test_actual, actual_dict, _, _, _,_ = load_data(test_file, cw_plen, cw_flen, pw_len, pw_off, seq_len, args.stride,args.med_filt)
+    test_features, test_dict, test_targets,target_dict, test_actual, actual_dict, _, _, _,_ = load_data(test_file, cw_plen, cw_flen, pw_len, pw_off, seq_len, args.stride,args.med_filt, args.cutoff_hz)
     test_features = test_features[:, 0, :]  # Get a continuous time series
     # test_features: input sensor and control signals
     # test_targets: what we want to predict (the sensor data into the future)
