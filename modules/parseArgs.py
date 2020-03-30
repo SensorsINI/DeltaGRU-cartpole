@@ -29,9 +29,9 @@ def args():
     parser.add_argument('--rnn_type',           default='GRU', help='RNN Type')
     parser.add_argument('--num_rnn_layers',     default=2, type=int, help='Number of RNN layers')
     parser.add_argument('--rnn_hid_size',       default=128, type=int, help='RNN Hidden layer size')
-    parser.add_argument('--cw_plen',            default=10, type=int, help='Number of previous timesteps in the context window, leads to initial latency')
+    parser.add_argument('--cw_plen',            default=20, type=int, help='Number of previous timesteps in the context window, leads to initial latency')
     parser.add_argument('--cw_flen',            default=0, type=int,  help='Number of future timesteps in the context window, leads to consistent latency')
-    parser.add_argument('--pw_len',             default=10, type=int, help='Number of future timesteps in the prediction window')
+    parser.add_argument('--pw_len',             default=100, type=int, help='Number of future timesteps in the prediction window, big number uses a LOT of memory')
     parser.add_argument('--pw_off',             default=1, type=int,  help='Offset in #timesteps of the prediction window w.r.t the current timestep')
     #plotting
     parser.add_argument('--pw_idx',             default=1, type=int, help='Index of timestep in the prediction window to show in plots')

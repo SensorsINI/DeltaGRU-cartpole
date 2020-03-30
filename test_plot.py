@@ -5,7 +5,7 @@ import torch.utils.data.dataloader
 import numpy as np
 import random as rnd
 from modules.util import load_normalization
-from modules.data import load_data, normalize, unnormalize
+from modules.data import load_data, normalize, unnormalize, computeNormalization
 import matplotlib.pyplot as plt
 
 # import matplotlib.pylab as pylab
@@ -64,8 +64,7 @@ if __name__ == '__main__':
     ########################################################
     # Create Dataset
     ########################################################
-    test_features, test_targets, test_actual, _, _, _, _ = load_data(test_file, cw_plen, cw_flen, pw_len, pw_off, seq_len, args.stride,
-                                                   args.med_filt)
+    test_features, test_dict, test_targets,target_dict, test_actual, actual_dict, _, _, _,_ = load_data(test_file, cw_plen, cw_flen, pw_len, pw_off, seq_len, args.stride,args.med_filt)
     test_features = test_features[:, 0, :]  # Get a continuous time series
     # test_features: input sensor and control signals
     # test_targets: what we want to predict (the sensor data into the future)
@@ -77,9 +76,7 @@ if __name__ == '__main__':
     test_features_norm = normalize(test_features, mean_train_features, std_train_features)
     test_targets_norm = normalize(test_targets, mean_train_targets, std_train_targets)
 
-    print('\n###################################################################################\n\r'
-          '# Dataset\n\r'
-          '###################################################################################')
+    print('# Dataset')
     print("Dim: (num_sample, look_back_len, feat_size)")
     print("Test data size:         ", test_features_norm.shape)
     print("Test prediction size:   ", test_targets_norm.shape)
@@ -171,39 +168,50 @@ if __name__ == '__main__':
     t_start = cw_plen  # Put the initial timestep at the first timestep after the first possible context window
     t_start = 0
     ts_actual = np.arange(t_start, t_start + num_test_tstep)  # timesteps to show actual input data
-    angle_actual = test_actual[ts_actual, 0].squeeze()  # is normalized data of input angle
-    position_actual = test_actual[ts_actual, 1].squeeze()  # normalized position
+    angle_actual = test_actual[ts_actual, actual_dict['angle']].squeeze()  # actual original data of input angle
+    position_actual = test_actual[ts_actual, actual_dict['position']].squeeze()  # actual input cart position, normalized to table size by POSITION_LIMIT
+    # I don't know how to get the input position from the cryptic indexing of the input sequences or targets, so recompute the normalized position here
+    m=mean_train_features[6]
+    s=std_train_features[6]
+    position_actual_norm_all = (position_actual-m)/s  # normalized input position
+    motor_actual = test_actual[ts_actual, actual_dict['actualMotorCmd']].squeeze()  # original input motor cmd
 
-    # Get Prediction
-    ts_pred = np.arange(t_start + pw_off,
-                        t_start + pw_off + num_test_tstep)  # prediction timesteps, not quite the same since there is offset and window
-    y_pred = np.reshape(y_pred, (num_test_tstep, pw_len,
-                                 -1))  # ???? TODO why doesn't this use the ts_pred?? Reshape to add the feature dimension (timestep, pw_len, feat)
-    sin_pred = np.squeeze(y_pred[t_start:t_start + num_test_tstep, 0, 0])  # TODO same here, why not use ts_pred?
-    cos_pred = np.squeeze(y_pred[t_start:t_start + num_test_tstep, 0, 1])
+    # Get Predictions
+    ts_pred = np.arange(t_start + pw_off,t_start + pw_off + num_test_tstep)  # prediction timesteps, not quite the same since there is offset and window
+    y_pred = np.reshape(y_pred, (num_test_tstep, pw_len,-1))  #  doesn't use the ts_pred because shape adds the feature dimension (timestep, pw_len, feat)
+    sin_pred = np.squeeze(y_pred[t_start:t_start + num_test_tstep, 0, target_dict['sinAngle']])
+    cos_pred = np.squeeze(y_pred[t_start:t_start + num_test_tstep, 0, target_dict['cosAngle']])
     angle_pred = np.arctan2(sin_pred, cos_pred)  # compute angle from sin and cos
-    position_pred = y_pred[t_start:t_start + num_test_tstep, 0, 4]  # prediction of normalized position
+    position_pred = np.squeeze(y_pred[t_start:t_start + num_test_tstep, 0, target_dict['position']])  # prediction of normalized position
 
     # Plot angle error
-    fig1, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 8))
-    ax1.set_title('(a)', fontsize=24)
-    ax1.set_ylabel("angle err (rad)", fontsize=24)
-    ax1.set_xlabel('Time (samples, 200/s)', fontsize=24)
-    ax1.plot(ts_actual, angle_actual, 'k.', markersize=12, label='Ground Truth')
-    ax1.plot(ts_pred, angle_pred, 'r.', markersize=3, label='RNN')
-    ax1.tick_params(axis='both', which='major', labelsize=20)
-    ax1.legend(fontsize=14)
+    fig1, axs = plt.subplots(3, 1, figsize=(14, 8))
+    # axs[0].set_title('(a)', fontsize=24)
+    axs[0].set_ylabel("angle err (rad)", fontsize=18)
+    axs[0].plot(ts_actual, angle_actual, 'k', markersize=12, label='Ground Truth')
+    axs[0].plot(ts_pred, angle_pred, 'r', markersize=3, label='RNN')
+    axs[0].tick_params(axis='both', which='major', labelsize=20)
+    axs[0].legend(fontsize=14)
 
-    # Plot position error
-    ax2.set_title('(b)', fontsize=24)
-    ax2.set_ylabel("position err (enc)", fontsize=24)
-    ax2.set_xlabel('Time', fontsize=24)
-    ax2.plot(ts_actual, position_actual, 'k.', markersize=12, label='Ground Truth')
+    # Plot position
+    # axs[1].set_title('(b)', fontsize=24)
+    axs[1].set_ylabel("position (norm)", fontsize=18)
+    # axs[1].set_xlabel('Time', fontsize=18)
+    axs[1].plot(ts_actual, position_actual_norm_all, 'k', markersize=12, label='Ground Truth')
+    axs[1].plot(ts_pred, position_pred, 'r', markersize=3, label='RNN')
     # print("t_pred size:      ", t_pred.shape)
     # print("pred_series size: ", position_actual.shape)
-    ax2.plot(ts_pred, position_pred, 'r.', markersize=3, label='RNN')
-    ax2.tick_params(axis='both', which='major', labelsize=20)
-    ax2.legend(fontsize=14)
+    axs[1].tick_params(axis='both', which='major', labelsize=16)
+    axs[1].legend(fontsize=14)
+
+    # plot motor input command
+    # axs[2].set_title('(b)', fontsize=24)
+    axs[2].set_ylabel("motor (norm)", fontsize=18)
+    axs[2].set_xlabel('Time', fontsize=18)
+    axs[2].set_xlabel('Time (samples, 200/s)', fontsize=18)
+    axs[2].plot(ts_actual, motor_actual, 'k', markersize=12, label='motor')
+    axs[2].tick_params(axis='both', which='major', labelsize=16)
+    axs[2].legend(fontsize=14)
 
     ########################################################################
     # Slider
@@ -212,43 +220,53 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     from matplotlib.widgets import Slider, Button
 
-    # Initialize Plot
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 10), sharex=True)
-    plt.subplots_adjust(left=0.15, right=0.9, bottom=0.3, top=0.9)
+    # Initialize data for slider plots
     t = np.arange(0.0, 1.0, 0.001)
+    t_start = 0
     t_curr = cw_plen  # Put the initial timestep at the first timestep after the first possible context window
-    t_start = t_curr - cw_plen
     ts_actual = np.arange(t_start, t_start + plot_len)
     ts_context = np.arange(t_start, t_start + cw_plen)
-    # TODO angle from sin/cos actual and prediction
     ts_pred = np.arange(t_curr + pw_off, t_curr + pw_off + pw_len)
-    angle_actual = test_actual[t_start:t_start + plot_len, 0].squeeze()
-    sin_context = test_features[t_start:t_start + cw_plen, 0].squeeze()
-    cos_context = test_features[t_start:t_start + cw_plen, 1].squeeze()
+
+    angle_actual = test_actual[ts_actual, actual_dict['angle']].squeeze()
+    sin_context = test_features[ts_context, test_dict['sinAngle']].squeeze()
+    cos_context = test_features[ts_context, test_dict['sinAngle']].squeeze()
     angle_context = np.arctan2(sin_context, cos_context)
-    sin_pred = np.squeeze(y_pred[t_start, :, 0])
-    cos_pred = np.squeeze(y_pred[t_start, :, 1])
+    sin_pred = np.squeeze(y_pred[t_start, :, target_dict['sinAngle']])
+    cos_pred = np.squeeze(y_pred[t_start, :, target_dict['sinAngle']])
     angle_pred = np.arctan2(sin_pred, cos_pred)
-    position_actual = test_actual[t_start:t_start + plot_len, 1].squeeze()  # shouldl already be in radians
-    position_context = test_features[t_start:t_start + cw_plen, 4].squeeze()  # should already be in radians
-    position_pred = y_pred[t_start, :, 4]
+    position_actual_norm = position_actual_norm_all[ts_actual]
+    position_context = position_actual_norm_all[ts_context]
+    position_pred = y_pred[t_start, :, target_dict['position']]
+    motor_actual = test_actual[ts_actual, actual_dict['actualMotorCmd']].squeeze()
 
-    # Draw Plots
-    plot1_actual, = ax1.plot(ts_actual, position_actual, 'k.', lw=3, label='Ground Truth')
-    plot1_context, = ax1.plot(ts_context, position_context, 'g--', lw=2, label='Context')
-    plot1_pred, = ax1.plot(ts_pred, position_pred, 'r-', lw=2, label='Prediction')
-    plot2_actual, = ax2.plot(ts_actual, angle_actual, 'k.', lw=3, label='Ground Truth')
-    plot2_context, = ax2.plot(ts_context, angle_context, 'g--', lw=2, label='Context')
-    plot2_pred, = ax2.plot(ts_pred, angle_pred, 'r-', lw=2, label='Prediction')
+    # Draw Plots, from top position, angle, motor
+    fig, axs = plt.subplots(3, 1,figsize=(14, 10), sharex=True)
+    plt.subplots_adjust(left=0.15, right=0.9, bottom=0.3, top=0.9)
+    # cart position
+    plot1_actual, = axs[0].plot(ts_actual, position_actual_norm, 'k.', lw=3, label='Ground Truth')
+    plot1_context, = axs[0].plot(ts_context, position_context, 'g--', lw=2, label='Context')
+    plot1_pred, = axs[0].plot(ts_pred, position_pred, 'r-', lw=2, label='Prediction')
+    # pole angle
+    plot2_actual, = axs[1].plot(ts_actual, angle_actual, 'k.', lw=3, label='Ground Truth')
+    plot2_context, = axs[1].plot(ts_context, angle_context, 'g--', lw=2, label='Context')
+    plot2_pred, = axs[1].plot(ts_pred, angle_pred, 'r-', lw=2, label='Prediction')
+    # motor
+    plot3_actual, = axs[2].plot(ts_actual, motor_actual, 'k', lw=3, label='Motor')
 
-    ax1.set_ylabel("Pos. Error (rad)", fontsize=14)
-    ax1.set_yticks(np.arange(-0.1, 0.4, 0.1))
-    ax1.legend(fontsize=12)
-    ax2.set_ylabel("Ang. Error (rad)", fontsize=14)
-    ax2.set_xlabel('Timestep (200 Hz)', fontsize=14)
-    ax2.set_yticks(np.arange(-0.04, 0.05, 0.02))
-    ax2.legend(fontsize=12)
-    ax1.margins(x=0)
+    axs[0].set_ylabel("Position (norm)", fontsize=14)
+    axs[0].set_yticks(np.arange(-0.1, 0.4, 0.1))
+    axs[0].legend(fontsize=12)
+    axs[0].margins(x=0)
+
+    axs[1].set_ylabel("Ang. Error (rad)", fontsize=14)
+    axs[1].set_yticks(np.arange(-0.04, 0.05, 0.02))
+    axs[1].legend(fontsize=12)
+
+    axs[2].set_ylabel("motor (norm)", fontsize=14)
+    axs[2].set_xlabel('Timestep (200 Hz)', fontsize=14)
+    axs[2].set_yticks(np.arange(-0.04, 0.05, 0.02))
+    axs[2].legend(fontsize=12)
 
     axcolor = 'lightgoldenrodyellow'
     axtstep = plt.axes([0.15, 0.15, 0.75, 0.03], facecolor=axcolor)
@@ -262,22 +280,23 @@ if __name__ == '__main__':
 
 
     def update(val):
-        t_curr = int(
-            ststep.val)  # Put the initial timestep at the first timestep after the first possible context window
+        t_curr = int(ststep.val)  # Put the initial timestep at the first timestep after the first possible context window
         t_start = t_curr - cw_plen
         t_actual = np.arange(t_start, t_start + plot_len)
         t_context = np.arange(t_start, t_start + cw_plen)
         t_pred = np.arange(t_curr + pw_off, t_curr + pw_off + pw_len)
-        angle_actual = test_actual[t_start:t_start + plot_len, 0].squeeze()
-        sin_context = test_features[t_start:t_start + cw_plen, 0].squeeze()
-        cos_context = test_features[t_start:t_start + cw_plen, 1].squeeze()
+        angle_actual = test_actual[t_actual, 0].squeeze()
+        sin_context = test_features[t_context, 0].squeeze()
+        cos_context = test_features[t_context, 1].squeeze()
         angle_context = np.arctan2(sin_context, cos_context)
         sin_pred = np.squeeze(y_pred[t_start, :, 0])
         cos_pred = np.squeeze(y_pred[t_start, :, 1])
         angle_pred = np.arctan2(sin_pred, cos_pred)
-        position_actual = test_actual[t_start:t_start + plot_len, 1].squeeze()  # shouldl already be in radians
-        position_context = test_features[t_start:t_start + cw_plen, 4].squeeze()  # should already be in radians
+        position_actual = position_actual_norm_all[t_actual]
+        position_context = position_actual_norm_all[t_context]
         position_pred = y_pred[t_start, :, 4]
+        motor_actual = test_actual[t_actual, 2].squeeze()
+
         plot1_actual.set_xdata(t_actual)
         plot1_context.set_xdata(t_context)
         plot1_pred.set_xdata(t_pred)
@@ -290,10 +309,12 @@ if __name__ == '__main__':
         plot2_actual.set_ydata(angle_actual)
         plot2_context.set_ydata(angle_context)
         plot2_pred.set_ydata(angle_pred)
+        plot3_actual.set_ydata(motor_actual)
+
         # ax1.set_xticks(t_actual)
-        ax1.set_xlim(xmin=t_start, xmax=t_start + plot_len)
-        ax2.set_xlim(xmin=t_start, xmax=t_start + plot_len)
-        # ax2.set_xticks(t_actual)
+        axs[0].set_xlim(xmin=t_start, xmax=t_start + plot_len)
+        axs[1].set_xlim(xmin=t_start, xmax=t_start + plot_len)
+        axs[2].set_xlim(xmin=t_start, xmax=t_start + plot_len)
 
 
     ststep.on_changed(update)

@@ -4,11 +4,40 @@ from torch.utils import data
 import pandas as pd
 import numpy as np
 import math
-from scipy.signal import medfilt as medfilt
+from scipy.signal import butter, lfilter, lfilter_zi, medfilt
+import logging
 
 # TODO check value, might not be 4096 full scale. It does rotate all the way, is 0 at left, 2000 to right, about 3210 vertical up, and -947 hanging vertically
 RAD_PER_ANGLE_ADC = 2 * math.pi / 4096  # a complete rotation of the potentiometer is mapped to this many ADC counts
 POSITION_LIMIT = 4000  # position encoder has limit +/- POSITION_MAX
+MEDFILT_WINDOW=5
+GRADIENT_ORDER = 2  # type of gradient, 1 or 2 order
+FS = 200  # Hz sample rate
+CUTOFF = 10  # MHz
+B, A = butter(1, CUTOFF / (FS / 2), btype='low')  # 1st order Butterworth low-pass
+
+
+def normAndGrads(x):  # conditions and normalizes data
+    y=conditionSignal(x)
+    y=norm(y)
+    # compute gradients
+    dy = norm(np.gradient(y, edge_order=GRADIENT_ORDER))
+    ddy = norm(np.gradient(dy, edge_order=GRADIENT_ORDER))
+    return y, dy, ddy
+
+def conditionSignal(x):
+    # median filter outliers
+    y = medfilt(x, MEDFILT_WINDOW)
+    # lowpass filter x
+    zi = lfilter_zi(B, A)
+    y, _ = lfilter(B, A, y, axis=0, zi=zi * x[0])
+    return y
+
+def norm(x):
+    m = np.mean(x)
+    s = np.std(x)
+    y = (x - m) / s
+    return y
 
 
 class Dataset(data.Dataset):
@@ -42,7 +71,8 @@ def normalize(dat, mean, std):
 
 
 def unnormalize(dat, mean, std):
-    rep = int(dat.shape[-1] / mean.shape[0])  # there is 1 mean for each input sensor value, repeat it for each element in sequence in data
+    rep = int(dat.shape[-1] / mean.shape[0])  # results in cw_len to properly tile for applying to dat.
+    # there is 1 mean for each input sensor value, repeat it for each element in sequence in data
     mean = np.tile(mean, rep)
     std = np.tile(std, rep)
     dat = dat * std + mean
@@ -87,7 +117,11 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med
     Returns:
         Unnormalized numpy arrays
         input_data:  indexed by [sample, sequence, # sensor inputs * cw_len]
+        input dict:  dictionary of input data names with key index into sensor index value
         targets:  indexed by [sample, sequence, # output sensor values * pw_len]
+        target dict:  dictionary of target data names with key index into sensor index value
+        actual: raw input data indexed by [sample,sensor]
+        actual dict:  dictionary of actual inputs with key index into sensor index value
         mean_features, std_features, mean_targets_data, std_targets_data: the means and stds of training and raw_targets data.
             These are vectors with length # of sensorss
 
@@ -95,12 +129,16 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med
          all sensors for sample0, all sensors for sample1, .....all sensors for sampleN, where N is the prediction length
     '''
 
+    MEDFILT_WINDOW=med_filt
     # Load dataframe
+    print('loading data from '+str(filepath))
     df = pd.read_csv(filepath)
 
     # time,deltaTimeMs,angle,position,angletargets,angleErr,positiontargets,positionErr,angleCmd,positionCmd,motorCmd,actualMotorCmd
     # 172.2985134124756,4.787921905517578,1699,-418,3129,-1428.0,0,-418.0,573146.4030813494,-8360.0,7055,0
 
+
+    print('processing data to generate sequences')
     time = df.time.to_numpy()
     deltaTimeMs = df.deltaTimeMs.to_numpy()
 
@@ -112,28 +150,18 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med
     # for control might depend on position of cart
     # position has range < +/-1
 
-    # Median Filter
-    if med_filt > 0:
-        angle = medfilt(angle, med_filt)
-        position = medfilt(position, med_filt)
-
     # project angle onto x and y since angle is a rotational variable with 2pi cut that we cannot fit properly and does not represent gravity and lateral acceleration well.
     sinAngle = np.sin(angle)
     cosAngle = np.cos(angle)
-    # compute temporal derivatives from state data
-    averageDeltaTMs = deltaTimeMs.mean()  # TODO this is approximate derivative since sample rate varied a bit around 5ms
+    # # compute temporal derivatives from state data
+    # averageDeltaTMs = deltaTimeMs.mean()  # TODO this is approximate derivative since sample rate varied a bit around 5ms
     # TODO consider using a better controlled derivative that enforces e.g. total variation constraint
     actualMotorCmd = df.actualMotorCmd.to_numpy()  # zero-centered motor speed command
 
     # Derive Other Data
-    dAngle = np.gradient(angle,averageDeltaTMs)
-    ddAngle = np.gradient(dAngle, edge_order=1)  # same for accelerations
-    dCosAngle = np.gradient(cosAngle, averageDeltaTMs)
-    dSinAngle = np.gradient(sinAngle, averageDeltaTMs)
-    ddCosAngle = np.gradient(dCosAngle, averageDeltaTMs)
-    ddSinAngle = np.gradient(dSinAngle, averageDeltaTMs)
-    dPosition = np.gradient(position, averageDeltaTMs)
-    ddPosition = np.gradient(dPosition, edge_order=1)
+    sinAngle, dSinAngle, ddSinAngle = normAndGrads(sinAngle)
+    cosAngle,dCosAngle, ddCosAngle=normAndGrads(cosAngle)
+    position,dPosition, ddPosition=normAndGrads(position)
 
     # Features (Train Data)
     raw_features = []
@@ -143,14 +171,15 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med
     raw_features.append(sinAngle)
     raw_features.append(cosAngle)
     raw_features.append(dSinAngle)
-    raw_features.append(dCosAngle)
-    # raw_features.append(ddSinAngle)
-    # raw_features.append(ddCosAngle)
+    raw_features.append(dSinAngle)
+    raw_features.append(ddSinAngle)
+    raw_features.append(ddCosAngle)
     raw_features.append(position)
     raw_features.append(dPosition)
-    # raw_features.append(ddPosition)
+    raw_features.append(ddPosition)
     raw_features.append(actualMotorCmd)
     raw_features = np.vstack(raw_features).transpose()  # raw_features indexed by [sample, input sensor/control]
+    features_dict={ 'sinAngle':0,'cosAngle':1,'dSinAngle':2,'dCosAngle':3,'ddSinAngle':4,'ddCosAngle':5,'position':6,'dPosition':7,'ddPosition':8,'actualMotorCmd': 9}
 
     # targetss (Label Data)
     raw_targets = []
@@ -161,14 +190,17 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med
     # raw_targets.append(angle)
     # raw_targets.append(dAngle)
     raw_targets.append(position)
-    # raw_targets.append(dPosition)
+    raw_targets.append(dPosition)
     raw_targets = np.vstack(raw_targets).transpose()  # raw_targets indexed by [sample, sensor]
+    targets_dict={ 'sinAngle':0,'cosAngle':1,'dSinAngle':2,'dCosAngle':3,'position':4,'dPosition':5}
 
     # Actual Data for Plotting
     raw_actual = []
     raw_actual.append(angle)
     raw_actual.append(position)
+    raw_actual.append(actualMotorCmd)
     actual = np.vstack(raw_actual).transpose()  # raw_actual data indexed by [sample, sensor]
+    actual_dict = {'angle': 0, 'position': 1, 'actualMotorCmd': 2}
 
     # compute normalization of data now
     mean_features, std_features = computeNormalization(raw_features)
@@ -198,4 +230,4 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med
     features = np.stack(features, axis=0)  # indexed by [sample, sequence, # sensor inputs * cw_len]
     targets = np.stack(targets, axis=0)  # [sample, sequence, # output sensor values * pw_len]
 
-    return features, targets, actual, mean_features, std_features, mean_targets, std_targets
+    return features, features_dict, targets, targets_dict, actual, actual_dict, mean_features, std_features, mean_targets, std_targets

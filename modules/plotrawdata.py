@@ -1,12 +1,16 @@
 import tkinter as tk
 from tkinter import filedialog
-from data import load_data, Dataset
+# from modules.data import load_data, Dataset
 import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import os
 from pathlib import Path
+# from scipy.interpolate import interp1d
+# from scipy.signal import lfilter
+from modules.data import normAndGrads, norm
+
 
 if __name__ == '__main__':
 
@@ -27,27 +31,33 @@ if __name__ == '__main__':
     time = df.time.to_numpy()
     deltaTimeMs = df.deltaTimeMs.to_numpy()
 
+
     angle = df.angleErr.to_numpy()  # simplify the angle to just angle error, so it is zero centered
-    position = df.positionErr.to_numpy()  # same for position
+    position = df.position.to_numpy()  # same for position
     # compute temporal derivatives from state data
-    averageDeltaT = deltaTimeMs.mean()  # TODO this is approximate derivative since sample rate varied a bit around 5ms
-    dAngle = np.gradient(angle, averageDeltaT)
-    dPosition = np.gradient(position, averageDeltaT)
-    actualMotorCmd = df.actualMotorCmd.to_numpy()  # zero-centered motor speed command
+    # averageDeltaT = deltaTimeMs.mean()  # TODO this is approximate derivative since sample rate varied a bit around 5ms
+    angle, dAngle, ddAngle = normAndGrads(angle)
+    angle, dAngle, ddAngle = normAndGrads(angle)
+    position, dPosition, ddPosition = normAndGrads(position)
+    actualMotorCmd = norm(df.actualMotorCmd.to_numpy())  # zero-centered motor speed command
 
-    plt.subplot(3, 1, 1)
-    plt.plot(time, angle)
+    fig, axs = plt.subplots(3, 1)
+    axs[0].plot(time, angle, label='angle')
+    axs[0].plot(time, dAngle, label='dAngle')
+    axs[0].set_ylabel('angle err')
+    axs[0].legend(fontsize=14)
+
+    axs[1].plot(time, position, label='position')
+    axs[1].plot(time, dPosition, label='dPosition')
+    axs[1].set_ylabel('position')
+    axs[1].legend(fontsize=14)
+
+    axs[2].plot(time, actualMotorCmd)
+    axs[2].set_ylabel('motor cmd')
+    axs[2].set_xlabel('time (s)')
+    axs[2].legend(fontsize=14)
+
     plt.title('cart-pole raw data')
-    plt.ylabel('angle err (ADC)')
-
-    plt.subplot(3, 1, 2)
-    plt.plot(time, position)
-    plt.ylabel('position err (encoder)')
-
-    plt.subplot(3, 1, 3)
-    plt.plot(time, actualMotorCmd)
-    plt.xlabel('time (s)')
-    plt.ylabel('motor cmd (PWM)')
 
     plt.savefig(plotfilename)
     plt.show()

@@ -109,11 +109,11 @@ if __name__ == '__main__':
     ########################################################
     # Create Dataset
     ########################################################
-    train_features, train_targets, _, mean_train_features, std_train_features, mean_train_targets, std_train_targets = \
+    train_features, train_dict, train_targets, target_dict,_,actual_dict, mean_train_features, std_train_features, mean_train_targets, std_train_targets = \
         load_data(train_file, cw_plen, cw_flen, pw_len, pw_off, seq_len, args.stride, args.med_filt)
-    dev_features, dev_targets, _, _, _, _, _ = \
+    dev_features,_, dev_targets, _, _,_, _, _, _, _ = \
         load_data(val_file, cw_plen, cw_flen, pw_len, pw_off, seq_len, args.stride, args.med_filt)
-    test_features, test_targets, _, _, _, _, _ = \
+    test_features,_, test_targets,_,_, _, _, _, _, _ = \
         load_data(test_file, cw_plen, cw_flen, pw_len, pw_off, seq_len, args.stride, args.med_filt)
 
     save_normalization(savepath, mean_train_features, std_train_features, mean_train_targets, std_train_targets)
