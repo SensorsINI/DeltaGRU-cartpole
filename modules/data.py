@@ -12,24 +12,24 @@ RAD_PER_ANGLE_ADC = 2 * math.pi / 4096  # a complete rotation of the potentiomet
 POSITION_LIMIT = 4000  # position encoder has limit +/- POSITION_MAX
 MEDFILT_WINDOW=5
 GRADIENT_ORDER = 2  # type of gradient, 1 or 2 order
+CUTOFF_HZ = 10  # Hz
 FS = 200  # Hz sample rate
-CUTOFF = 10  # MHz
-B, A = butter(1, CUTOFF / (FS / 2), btype='low')  # 1st order Butterworth low-pass
 
 
-def filterAndGradients(x):  # conditions and normalizes data
-    y=medianFilter(x)
+def filterAndGradients(x, medFiltWindow=MEDFILT_WINDOW, cutoffHz=CUTOFF_HZ):  # conditions and normalizes data
+    y=filterData(x, medFiltWindow,cutoffHz)
     # compute gradients
     dy = np.gradient(y, edge_order=GRADIENT_ORDER)
     ddy = np.gradient(dy, edge_order=GRADIENT_ORDER)
     return y, dy, ddy
 
-def medianFilter(x):
+def filterData(x, medFiltWindow=MEDFILT_WINDOW, cutoffHz=CUTOFF_HZ):
+    b, a = butter(1, cutoffHz / (FS / 2), btype='low')  # 1st order Butterworth low-pass
     # median filter outliers
-    y = medfilt(x, MEDFILT_WINDOW)
+    y = medfilt(x, medFiltWindow)
     # lowpass filter x
-    zi = lfilter_zi(B, A)
-    y, _ = lfilter(B, A, y, axis=0, zi=zi * x[0])
+    zi = lfilter_zi(b, a)
+    y, _ = lfilter(b, a, y, axis=0, zi=zi * x[0])
     return y
 
 def norm(x):
@@ -100,7 +100,7 @@ def computeNormalization(dat: numpy.array):
     return m, s
 
 
-def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med_filt=3):
+def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med_filt=MEDFILT_WINDOW, cutoffHz=CUTOFF_HZ):
     '''
     Loads dataset from CSV file
     Args:
@@ -128,8 +128,7 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med
          all sensors for sample0, all sensors for sample1, .....all sensors for sampleN, where N is the prediction length
     '''
 
-    MEDFILT_WINDOW=med_filt
-    # Load dataframe
+   # Load dataframe
     print('loading data from '+str(filepath))
     df = pd.read_csv(filepath)
 
@@ -149,8 +148,8 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med
     # for control might depend on position of cart
     # position has range < +/-1
 
-    angle=medianFilter(angle)
-    position=medianFilter(position)
+    angle=filterData(angle,med_filt,cutoffHz)
+    position=filterData(position,med_filt,cutoffHz)
 
     # project angle onto x and y since angle is a rotational variable with 2pi cut that we cannot fit properly and does not represent gravity and lateral acceleration well.
     sinAngle = np.sin(angle)
@@ -161,9 +160,9 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med
     actualMotorCmd = df.actualMotorCmd.to_numpy()  # zero-centered motor speed command
 
     # Derive Other Data
-    sinAngle, dSinAngle, ddSinAngle = filterAndGradients(sinAngle)
-    cosAngle,dCosAngle, ddCosAngle=filterAndGradients(cosAngle)
-    position,dPosition, ddPosition=filterAndGradients(position)
+    sinAngle, dSinAngle, ddSinAngle = filterAndGradients(sinAngle,med_filt,cutoffHz)
+    cosAngle,dCosAngle, ddCosAngle=filterAndGradients(cosAngle,med_filt,cutoffHz)
+    position,dPosition, ddPosition=filterAndGradients(position,med_filt,cutoffHz)
 
     # Features (Train Data)
     raw_features = []
