@@ -149,6 +149,9 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med
     # for control might depend on position of cart
     # position has range < +/-1
 
+    angle=medianFilter(angle)
+    position=medianFilter(position)
+
     # project angle onto x and y since angle is a rotational variable with 2pi cut that we cannot fit properly and does not represent gravity and lateral acceleration well.
     sinAngle = np.sin(angle)
     cosAngle = np.cos(angle)

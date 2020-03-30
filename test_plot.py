@@ -217,38 +217,38 @@ if __name__ == '__main__':
     from matplotlib.widgets import Slider, Button
 
     # Initialize data for slider plots
-    t = np.arange(0.0, 1.0, 0.001)
+    # t = np.arange(0.0, 1.0, 0.001)
     t_start = 0
     t_curr = cw_plen  # Put the initial timestep at the first timestep after the first possible context window
-    ts_actual = np.arange(t_start, t_start + plot_len)
+    ts_sliderplot = np.arange(t_start, t_start + plot_len)
     ts_context = np.arange(t_start, t_start + cw_plen)
     ts_pred = np.arange(t_curr + pw_off, t_curr + pw_off + pw_len)
 
-    angle_actual = test_actual[ts_actual, actual_dict['angle']].squeeze()
-    sin_context = test_features[ts_context, test_dict['sinAngle']].squeeze()
-    cos_context = test_features[ts_context, test_dict['sinAngle']].squeeze()
-    angle_context = np.arctan2(sin_context, cos_context)
-    sin_pred = np.squeeze(y_pred[t_start, :, target_dict['sinAngle']])
+    angle_actual = test_actual[ts_sliderplot, actual_dict['angle']].squeeze()
+    angle_context = test_actual[ts_context, actual_dict['angle']].squeeze()
+    # indexes of y_pred are [sample, predition_window, sensor_output], e.g. [9000, 50, 6]
+    # at this point y_pred (RNN output) is already unnormalized
+    sin_pred = np.squeeze(y_pred[t_start, :, target_dict['sinAngle']]) # for slider, prediction is all pw_len (e.g. 50) predictions at t_start for sin
     cos_pred = np.squeeze(y_pred[t_start, :, target_dict['sinAngle']])
     angle_pred = np.arctan2(sin_pred, cos_pred)
-    position_actual_norm = position_actual[ts_actual]
+    position_actual_sliderplot = position_actual[ts_sliderplot]
     position_context = position_actual[ts_context]
     position_pred = y_pred[t_start, :, target_dict['position']]
-    motor_actual = test_actual[ts_actual, actual_dict['actualMotorCmd']].squeeze()
+    motor_actual = test_actual[ts_sliderplot, actual_dict['actualMotorCmd']].squeeze()
 
     # Draw Plots, from top position, angle, motor
     fig, axs = plt.subplots(3, 1,figsize=(14, 10), sharex=True)
     plt.subplots_adjust(left=0.15, right=0.9, bottom=0.3, top=0.9)
     # cart position
-    plot1_actual, = axs[0].plot(ts_actual, position_actual_norm, 'k.', lw=3, label='Ground Truth')
-    plot1_context, = axs[0].plot(ts_context, position_context, 'g--', lw=2, label='Context')
-    plot1_pred, = axs[0].plot(ts_pred, position_pred, 'r-', lw=2, label='Prediction')
+    plot1_actual, =     axs[0].plot(ts_sliderplot, position_actual_sliderplot, 'k', lw=3, label='Ground Truth')
+    plot1_context, =    axs[0].plot(ts_context, position_context, 'g--', lw=6, label='Context')
+    plot1_pred, =       axs[0].plot(ts_pred, position_pred, 'r-', lw=4, label='Prediction')
     # pole angle
-    plot2_actual, = axs[1].plot(ts_actual, angle_actual, 'k.', lw=3, label='Ground Truth')
-    plot2_context, = axs[1].plot(ts_context, angle_context, 'g--', lw=2, label='Context')
-    plot2_pred, = axs[1].plot(ts_pred, angle_pred, 'r-', lw=2, label='Prediction')
+    plot2_actual, =     axs[1].plot(ts_sliderplot, angle_actual, 'k', lw=3, label='Ground Truth')
+    plot2_context, =    axs[1].plot(ts_context, angle_context, 'g--', lw=6, label='Context')
+    plot2_pred, =       axs[1].plot(ts_pred, angle_pred, 'r-', lw=4, label='Prediction')
     # motor
-    plot3_actual, = axs[2].plot(ts_actual, motor_actual, 'k', lw=3, label='Motor')
+    plot3_actual, =     axs[2].plot(ts_sliderplot, motor_actual, 'k', lw=3, label='Motor')
 
     axs[0].set_ylabel("Position (norm)", fontsize=14)
     axs[0].set_yticks(np.arange(-0.1, 0.4, 0.1))
@@ -278,33 +278,32 @@ if __name__ == '__main__':
     def update(val):
         t_curr = int(ststep.val)  # Put the initial timestep at the first timestep after the first possible context window
         t_start = t_curr - cw_plen
-        t_actual = np.arange(t_start, t_start + plot_len)
-        t_context = np.arange(t_start, t_start + cw_plen)
-        t_pred = np.arange(t_curr + pw_off, t_curr + pw_off + pw_len)
-        angle_actual = test_actual[t_actual, 0].squeeze()
-        sin_context = test_features[t_context, 0].squeeze()
-        cos_context = test_features[t_context, 1].squeeze()
-        angle_context = np.arctan2(sin_context, cos_context)
-        sin_pred = np.squeeze(y_pred[t_start, :, 0])
-        cos_pred = np.squeeze(y_pred[t_start, :, 1])
+        ts_sliderplot = np.arange(t_start, t_start + plot_len)
+        ts_context = np.arange(t_start, t_start + cw_plen)
+        ts_pred = np.arange(t_curr + pw_off, t_curr + pw_off + pw_len)
+        angle_actual = test_actual[ts_sliderplot, actual_dict['angle']].squeeze()
+        angle_context = test_actual[ts_context, actual_dict['angle']].squeeze()
+        sin_pred = np.squeeze(y_pred[t_start, :, target_dict['sinAngle']])
+        cos_pred = np.squeeze(y_pred[t_start, :, target_dict['cosAngle']])
         angle_pred = np.arctan2(sin_pred, cos_pred)
-        position_act = position_actual[t_actual]
-        position_context = position_actual[t_context]
-        position_pred = y_pred[t_start, :, 4]
-        motor_actual = test_actual[t_actual, 2].squeeze()
+        position_act = position_actual[ts_sliderplot]
+        position_context = position_actual[ts_context]
+        position_pred = y_pred[t_start, :, target_dict['position']]
+        motor_actual = test_actual[ts_sliderplot, actual_dict['actualMotorCmd']].squeeze()
 
-        plot1_actual.set_xdata(t_actual)
-        plot1_context.set_xdata(t_context)
-        plot1_pred.set_xdata(t_pred)
+        plot1_actual.set_xdata(ts_sliderplot)
+        plot1_context.set_xdata(ts_context)
+        plot1_pred.set_xdata(ts_pred)
         plot1_actual.set_ydata(position_act)
         plot1_context.set_ydata(position_context)
         plot1_pred.set_ydata(position_pred)
-        plot2_actual.set_xdata(t_actual)
-        plot2_context.set_xdata(t_context)
-        plot2_pred.set_xdata(t_pred)
+        plot2_actual.set_xdata(ts_sliderplot)
+        plot2_context.set_xdata(ts_context)
+        plot2_pred.set_xdata(ts_pred)
         plot2_actual.set_ydata(angle_actual)
         plot2_context.set_ydata(angle_context)
         plot2_pred.set_ydata(angle_pred)
+        plot3_actual.set_xdata(ts_sliderplot)
         plot3_actual.set_ydata(motor_actual)
 
         # ax1.set_xticks(t_actual)
