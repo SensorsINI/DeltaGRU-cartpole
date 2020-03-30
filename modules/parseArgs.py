@@ -1,5 +1,5 @@
 import argparse
-import main
+import train
 from modules.util import print_commandline
 import warnings
 
@@ -21,7 +21,7 @@ def args():
     parser.add_argument('--mode',               default=0, type=int,  help='Mode 0 - Pretrain on GRU; Mode 1 - Retrain on GRU; Mode 2 - Retrain on DeltaGRU')
     parser.add_argument('--seed',               default=1, type=int, help='Initialize the random seed of the run (for reproducibility).')
     parser.add_argument('--stride',             default=1, type=int, help='Stride for time series data slice window')
-    parser.add_argument('--seq_len',            default=50, type=int,  help='Sequence Length for BPTT training; samples are drawn with this length randomly throughout training set')
+    parser.add_argument('--seq_len',            default=20, type=int,  help='Sequence Length for BPTT training; samples are drawn with this length randomly throughout training set')
     parser.add_argument('--batch_size',         default=32, type=int, help='Batch size. How many samples to run forward in parallel before each weight update.')
     parser.add_argument('--num_epochs',         default=10, type=int, help='Number of epochs to train for.')
     parser.add_argument('--lr',                 default=1e-4, type=float, help='Learning rate')  # 5e-4
@@ -29,9 +29,9 @@ def args():
     parser.add_argument('--rnn_type',           default='GRU', help='RNN Type')
     parser.add_argument('--num_rnn_layers',     default=2, type=int, help='Number of RNN layers')
     parser.add_argument('--rnn_hid_size',       default=128, type=int, help='RNN Hidden layer size')
-    parser.add_argument('--cw_plen',            default=20, type=int, help='Number of previous timesteps in the context window, leads to initial latency')
+    parser.add_argument('--cw_plen',            default=50, type=int, help='Number of previous timesteps in the context window, leads to initial latency')
     parser.add_argument('--cw_flen',            default=0, type=int,  help='Number of future timesteps in the context window, leads to consistent latency')
-    parser.add_argument('--pw_len',             default=100, type=int, help='Number of future timesteps in the prediction window, big number uses a LOT of memory')
+    parser.add_argument('--pw_len',             default=50, type=int, help='Number of future timesteps in the prediction window, big number uses a LOT of memory')
     parser.add_argument('--pw_off',             default=1, type=int,  help='Offset in #timesteps of the prediction window w.r.t the current timestep')
     #plotting
     parser.add_argument('--pw_idx',             default=1, type=int, help='Index of timestep in the prediction window to show in plots')

@@ -170,10 +170,6 @@ if __name__ == '__main__':
     ts_actual = np.arange(t_start, t_start + num_test_tstep)  # timesteps to show actual input data
     angle_actual = test_actual[ts_actual, actual_dict['angle']].squeeze()  # actual original data of input angle
     position_actual = test_actual[ts_actual, actual_dict['position']].squeeze()  # actual input cart position, normalized to table size by POSITION_LIMIT
-    # I don't know how to get the input position from the cryptic indexing of the input sequences or targets, so recompute the normalized position here
-    m=mean_train_features[6]
-    s=std_train_features[6]
-    position_actual_norm_all = (position_actual-m)/s  # normalized input position
     motor_actual = test_actual[ts_actual, actual_dict['actualMotorCmd']].squeeze()  # original input motor cmd
 
     # Get Predictions
@@ -197,7 +193,7 @@ if __name__ == '__main__':
     # axs[1].set_title('(b)', fontsize=24)
     axs[1].set_ylabel("position (norm)", fontsize=18)
     # axs[1].set_xlabel('Time', fontsize=18)
-    axs[1].plot(ts_actual, position_actual_norm_all, 'k', markersize=12, label='Ground Truth')
+    axs[1].plot(ts_actual, position_actual, 'k', markersize=12, label='Ground Truth')
     axs[1].plot(ts_pred, position_pred, 'r', markersize=3, label='RNN')
     # print("t_pred size:      ", t_pred.shape)
     # print("pred_series size: ", position_actual.shape)
@@ -235,8 +231,8 @@ if __name__ == '__main__':
     sin_pred = np.squeeze(y_pred[t_start, :, target_dict['sinAngle']])
     cos_pred = np.squeeze(y_pred[t_start, :, target_dict['sinAngle']])
     angle_pred = np.arctan2(sin_pred, cos_pred)
-    position_actual_norm = position_actual_norm_all[ts_actual]
-    position_context = position_actual_norm_all[ts_context]
+    position_actual_norm = position_actual[ts_actual]
+    position_context = position_actual[ts_context]
     position_pred = y_pred[t_start, :, target_dict['position']]
     motor_actual = test_actual[ts_actual, actual_dict['actualMotorCmd']].squeeze()
 
@@ -292,15 +288,15 @@ if __name__ == '__main__':
         sin_pred = np.squeeze(y_pred[t_start, :, 0])
         cos_pred = np.squeeze(y_pred[t_start, :, 1])
         angle_pred = np.arctan2(sin_pred, cos_pred)
-        position_actual = position_actual_norm_all[t_actual]
-        position_context = position_actual_norm_all[t_context]
+        position_act = position_actual[t_actual]
+        position_context = position_actual[t_context]
         position_pred = y_pred[t_start, :, 4]
         motor_actual = test_actual[t_actual, 2].squeeze()
 
         plot1_actual.set_xdata(t_actual)
         plot1_context.set_xdata(t_context)
         plot1_pred.set_xdata(t_pred)
-        plot1_actual.set_ydata(position_actual)
+        plot1_actual.set_ydata(position_act)
         plot1_context.set_ydata(position_context)
         plot1_pred.set_ydata(position_pred)
         plot2_actual.set_xdata(t_actual)

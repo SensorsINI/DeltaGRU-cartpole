@@ -17,15 +17,14 @@ CUTOFF = 10  # MHz
 B, A = butter(1, CUTOFF / (FS / 2), btype='low')  # 1st order Butterworth low-pass
 
 
-def normAndGrads(x):  # conditions and normalizes data
-    y=conditionSignal(x)
-    y=norm(y)
+def filterAndGradients(x):  # conditions and normalizes data
+    y=medianFilter(x)
     # compute gradients
-    dy = norm(np.gradient(y, edge_order=GRADIENT_ORDER))
-    ddy = norm(np.gradient(dy, edge_order=GRADIENT_ORDER))
+    dy = np.gradient(y, edge_order=GRADIENT_ORDER)
+    ddy = np.gradient(dy, edge_order=GRADIENT_ORDER)
     return y, dy, ddy
 
-def conditionSignal(x):
+def medianFilter(x):
     # median filter outliers
     y = medfilt(x, MEDFILT_WINDOW)
     # lowpass filter x
@@ -159,9 +158,9 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med
     actualMotorCmd = df.actualMotorCmd.to_numpy()  # zero-centered motor speed command
 
     # Derive Other Data
-    sinAngle, dSinAngle, ddSinAngle = normAndGrads(sinAngle)
-    cosAngle,dCosAngle, ddCosAngle=normAndGrads(cosAngle)
-    position,dPosition, ddPosition=normAndGrads(position)
+    sinAngle, dSinAngle, ddSinAngle = filterAndGradients(sinAngle)
+    cosAngle,dCosAngle, ddCosAngle=filterAndGradients(cosAngle)
+    position,dPosition, ddPosition=filterAndGradients(position)
 
     # Features (Train Data)
     raw_features = []

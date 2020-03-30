@@ -9,7 +9,7 @@ import os
 from pathlib import Path
 # from scipy.interpolate import interp1d
 # from scipy.signal import lfilter
-from modules.data import normAndGrads, norm
+from modules.data import filterAndGradients, norm
 
 
 if __name__ == '__main__':
@@ -36,9 +36,9 @@ if __name__ == '__main__':
     position = df.position.to_numpy()  # same for position
     # compute temporal derivatives from state data
     # averageDeltaT = deltaTimeMs.mean()  # TODO this is approximate derivative since sample rate varied a bit around 5ms
-    angle, dAngle, ddAngle = normAndGrads(angle)
-    angle, dAngle, ddAngle = normAndGrads(angle)
-    position, dPosition, ddPosition = normAndGrads(position)
+    angle, dAngle, ddAngle = filterAndGradients(angle)
+    angle, dAngle, ddAngle = filterAndGradients(angle)
+    position, dPosition, ddPosition = filterAndGradients(position)
     actualMotorCmd = norm(df.actualMotorCmd.to_numpy())  # zero-centered motor speed command
 
     fig, axs = plt.subplots(3, 1)
