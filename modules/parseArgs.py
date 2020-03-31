@@ -19,7 +19,7 @@ def args():
     parser.add_argument('--med_filt',           default=5, type=int, help='median filter window length for all data, to remove outliers. Set to 0 to disable')
     parser.add_argument('--cutoff_hz',          default=20, type=int, help='lowpass filter for sensor inputs, set to 0 to disable')
     #training
-    parser.add_argument('--mode',               default=1, type=int,  help='Mode 0 - Pretrain on GRU; Mode 1 - Retrain on GRU; Mode 2 - Retrain on DeltaGRU')
+    parser.add_argument('--mode',               default=0, type=int,  help='Mode 0 - Pretrain on GRU; Mode 1 - Retrain on GRU; Mode 2 - Retrain on DeltaGRU')
     parser.add_argument('--seed',               default=1, type=int, help='Initialize the random seed of the run (for reproducibility).')
     parser.add_argument('--stride',             default=1, type=int, help='Stride for time series data slice window')
     parser.add_argument('--seq_len',            default=20, type=int,  help='Sequence Length for BPTT training; samples are drawn with this length randomly throughout training set')

@@ -188,6 +188,8 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med
     raw_targets.append(cosAngle)
     raw_targets.append(dSinAngle)
     raw_targets.append(dCosAngle)
+    raw_targets.append(ddSinAngle)
+    raw_targets.append(ddCosAngle)
     # raw_targets.append(angle)
     # raw_targets.append(dAngle)
     raw_targets.append(position)
