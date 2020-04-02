@@ -276,8 +276,8 @@ if __name__ == '__main__':
     optimizer = optim.Adam(net.parameters(), amsgrad=True, lr=lr)
 
     # Select Loss Function
-    criterion = nn.L1Loss()  # L1 loss function
-    # criterion = nn.MSELoss()  # Mean square error loss function
+    # criterion = nn.L1Loss()  # L1 loss function
+    criterion = nn.MSELoss()  # Mean square error loss function
 
     ########################################################
     # Training

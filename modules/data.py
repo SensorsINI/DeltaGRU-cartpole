@@ -132,7 +132,7 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med
     print('loading data from '+str(filepath))
     df = pd.read_csv(filepath)
 
-    # time,deltaTimeMs,angle,position,angletargets,angleErr,positiontargets,positionErr,angleCmd,positionCmd,motorCmd,actualMotorCmd
+    # time,deltaTimeMs,angle,position,angletargets,angleErr,positionTarget,positionErr,angleCmd,positionCmd,motorCmd,actualMotorCmd
     # 172.2985134124756,4.787921905517578,1699,-418,3129,-1428.0,0,-418.0,573146.4030813494,-8360.0,7055,0
 
 
@@ -172,15 +172,17 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med
     raw_features.append(sinAngle)
     raw_features.append(cosAngle)
     raw_features.append(dSinAngle)
-    raw_features.append(dSinAngle)
-    raw_features.append(ddSinAngle)
-    raw_features.append(ddCosAngle)
+    raw_features.append(dCosAngle)
     raw_features.append(position)
     raw_features.append(dPosition)
-    raw_features.append(ddPosition)
     raw_features.append(actualMotorCmd)
+    # raw_features.append(ddPosition)
+    # raw_features.append(ddSinAngle)
+    # raw_features.append(ddCosAngle)
+
     raw_features = np.vstack(raw_features).transpose()  # raw_features indexed by [sample, input sensor/control]
-    features_dict={ 'sinAngle':0,'cosAngle':1,'dSinAngle':2,'dCosAngle':3,'ddSinAngle':4,'ddCosAngle':5,'position':6,'dPosition':7,'ddPosition':8,'actualMotorCmd': 9}
+    # add to dict here to allow plotting more easily, don't forget other _dict below
+    features_dict={ 'sinAngle':0,'cosAngle':1,'dSinAngle':2,'dCosAngle':3,'position':4,'dPosition':5,'actualMotorCmd':6,'unused1':7,'unused12':8,'unused3': 9}
 
     # targetss (Label Data)
     raw_targets = []
@@ -188,22 +190,27 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med
     raw_targets.append(cosAngle)
     raw_targets.append(dSinAngle)
     raw_targets.append(dCosAngle)
-    raw_targets.append(ddSinAngle)
-    raw_targets.append(ddCosAngle)
     # raw_targets.append(angle)
     # raw_targets.append(dAngle)
     raw_targets.append(position)
     raw_targets.append(dPosition)
+    # raw_targets.append(ddSinAngle)
+    # raw_targets.append(ddCosAngle)
+    # raw_targets.append(ddPosition)
     raw_targets = np.vstack(raw_targets).transpose()  # raw_targets indexed by [sample, sensor]
-    targets_dict={ 'sinAngle':0,'cosAngle':1,'dSinAngle':2,'dCosAngle':3,'position':4,'dPosition':5}
+    # add to dict here to allow plotting more easily, don't forget other _dict below
+    targets_dict={ 'sinAngle':0,'cosAngle':1,'dSinAngle':2,'dCosAngle':3,'position':4,'dPosition':5,'unused1':6,'unused12':7,'unused3':8}
 
     # Actual Data for Plotting
     raw_actual = []
     raw_actual.append(angle)
     raw_actual.append(position)
     raw_actual.append(actualMotorCmd)
+    positionTarget =df.positionTarget.to_numpy() / float(POSITION_LIMIT) # user target for cart on table
+    raw_actual.append(positionTarget)
     actual = np.vstack(raw_actual).transpose()  # raw_actual data indexed by [sample, sensor]
-    actual_dict = {'angle': 0, 'position': 1, 'actualMotorCmd': 2}
+    # add to dict here to allow plotting more easily, don't forget other _dict above
+    actual_dict = {'angle': 0, 'position': 1, 'actualMotorCmd': 2, 'positionTarget': 3}
 
     # compute normalization of data now
     mean_features, std_features = computeNormalization(raw_features)

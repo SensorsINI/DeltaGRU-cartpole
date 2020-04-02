@@ -3,8 +3,10 @@ import train
 from modules.util import print_commandline
 import warnings
 
+# TRAIN_FILE_DEFAULT= './data/cartpole-2020-03-09-14-24-21 stock motor PD with dance.csv'
 TRAIN_FILE_DEFAULT= './data/cartpole-2020-03-09-14-43-54 stock motor PD control w dance and steps.csv'
 VAL_FILE_DEFAULT= './data/cartpole-2020-03-09-14-21-24 stock motor PD angle zero correct.csv'
+# TEST_FILE_DEFAULT= './data/cartpole-2020-03-09-14-43-54 stock motor PD control w dance and steps.csv'
 TEST_FILE_DEFAULT= './data/cartpole-2020-03-09-14-24-21 stock motor PD with dance.csv'
 
 def args():

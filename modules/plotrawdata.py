@@ -40,6 +40,7 @@ if __name__ == '__main__':
     angle, dAngle, ddAngle = filterAndGradients(angle)
     position, dPosition, ddPosition = filterAndGradients(position)
     actualMotorCmd = norm(df.actualMotorCmd.to_numpy())  # zero-centered motor speed command
+    positionTarget= norm(df.positionTarget.to_numpy())  # zero-centered motor speed command
 
     angle=norm(angle)
     dAngle = norm(dAngle)
@@ -48,23 +49,26 @@ if __name__ == '__main__':
     dPosition=norm(dPosition)
     ddPosition=norm(ddPosition)
     dAngle=norm(dAngle)
-    fig, axs = plt.subplots(3, 1, sharex=True) # share x axis so zoom zooms all plots)
-    axs[0].plot(time, angle, label='angle')
-    axs[0].plot(time, dAngle, label='dAngle')
+    fig, axs = plt.subplots(4, 1, sharex=True) # share x axis so zoom zooms all plots)
     axs[0].plot(time, ddAngle, label='ddAngle')
+    axs[0].plot(time, dAngle, label='dAngle')
+    axs[0].plot(time, angle, label='angle')
     axs[0].set_ylabel('angle err')
     axs[0].legend(fontsize=14)
 
-    axs[1].plot(time, position, label='position')
-    axs[1].plot(time, dPosition, label='dPosition')
     axs[1].plot(time, ddPosition, label='ddPosition')
+    axs[1].plot(time, dPosition, label='dPosition')
+    axs[1].plot(time, position, label='position')
     axs[1].set_ylabel('position')
     axs[1].legend(fontsize=14)
 
     axs[2].plot(time, actualMotorCmd,'-o')
     axs[2].set_ylabel('motor cmd')
     axs[2].set_xlabel('time (s)')
-    axs[2].legend(fontsize=14)
+
+    axs[3].plot(time, positionTarget,'-')
+    axs[3].set_ylabel('position target')
+    axs[3].set_xlabel('time (s)')
 
     plt.title('cart-pole raw data')
 
