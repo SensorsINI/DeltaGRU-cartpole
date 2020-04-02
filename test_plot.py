@@ -28,7 +28,7 @@ if __name__ == '__main__':
     pw_off = args.pw_off  # Length of future in timesteps to predict
     pw_idx = args.pw_idx  # Index of timestep in the prediction window
     seq_len = args.seq_len  # Sequence length
-    test_file = args.train_file
+    test_file = args.test_file
 
     # Plot Settings
     # start_test_tstep = args.start_test_tstep

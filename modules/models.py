@@ -85,7 +85,8 @@ class Model(nn.Module):
         self.fc = nn.Sequential(
             nn.Linear(in_features=self.cla_size, out_features=self.cla_size, bias=True),
             # nn.ReLU(), # TODO tobi removed relu and extra readout layer
-            # nn.Dropout(p=0.5),
+            nn.Sigmoid(), # TODO experiment
+            nn.Dropout(p=0.5),
             nn.Linear(in_features=self.cla_size, out_features=num_classes, bias=True)
         )
 
