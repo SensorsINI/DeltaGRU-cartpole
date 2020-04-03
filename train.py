@@ -16,6 +16,7 @@ from modules.log import write_log
 from modules.data import load_data, Dataset, normalize, unnormalize
 from modules.deltarnn import get_temporal_sparsity
 from modules import parseArgs
+import warnings
 
 if __name__ == '__main__':
     args = parseArgs.args()
@@ -42,6 +43,7 @@ if __name__ == '__main__':
     pw_len = args.pw_len  # Offset of future in timesteps to predict
     pw_off = args.pw_off  # Length of future in timesteps to predict
     seq_len = args.seq_len  # Sequence length
+    if seq_len<=cw_plen: warnings.warn('sequence length '+str(seq_len)+' is less than context window length '+str(cw_plen))
     lr = args.lr  # Learning rate
     batch_size = args.batch_size  # Mini-batch size
     num_epochs = args.num_epochs  # Number of epoches to train the network
@@ -490,7 +492,7 @@ if __name__ == '__main__':
         dict_log['sp_dx'] = sp_dx
         dict_log['sp_dh'] = sp_dh
 
-        print('Epoch: %3d of %3d | '
+        print('\nEpoch: %3d of %3d | '
               'Time: %s | '
               'LR: %1.5f | '
               'Train-L: %6.4f | '

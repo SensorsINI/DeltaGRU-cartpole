@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import math
 from scipy.signal import butter, lfilter, lfilter_zi, medfilt
-import logging
+import warnings
 
 # TODO check value, might not be 4096 full scale. It does rotate all the way, is 0 at left, 2000 to right, about 3210 vertical up, and -947 hanging vertically
 RAD_PER_ANGLE_ADC = 2 * math.pi / 4096  # a complete rotation of the potentiometer is mapped to this many ADC counts
@@ -189,7 +189,7 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med
     raw_features.append(position)
     raw_features.append(dPosition)
     raw_features.append(actualMotorCmd)
-    raw_features.append(positionTarget)
+    # raw_features.append(positionTarget)
     # raw_features.append(ddPosition)
     # raw_features.append(ddSinAngle)
     # raw_features.append(ddCosAngle)
