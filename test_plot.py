@@ -257,20 +257,20 @@ if __name__ == '__main__':
     # position target (from  user or dance program)
     plot3_actual, =     axs[3].plot(ts_sliderplot, positionTarget, 'k', lw=1, label='Motor')
 
-    axs[0].set_ylabel("Ang. Error (rad)", fontsize=14)
+    axs[0].set_ylabel("Ang. Error (rad)", fontsize=12)
     # axs[0].set_ylim((-0.1, 0.1)) # 0.1 is 5.7 deg
     axs[0].legend(fontsize=12)
 
-    axs[1].set_ylabel("Position (norm)", fontsize=14)
+    axs[1].set_ylabel("Position (norm)", fontsize=12)
     # axs[1].set_ylim((-2,2))
     axs[1].legend(fontsize=12)
     # axs[1].margins(x=0)
 
-    axs[2].set_ylabel("motor (PWM)", fontsize=14)
+    axs[2].set_ylabel("motor (PWM)", fontsize=12)
     axs[2].legend(fontsize=12)
 
-    axs[3].set_ylabel("position target", fontsize=14)
-    axs[3].set_xlabel('Timestep (200 Hz)', fontsize=14)
+    axs[3].set_ylabel("position target", fontsize=12)
+    axs[3].set_xlabel('Timestep (200 Hz)', fontsize=12)
 
     axcolor = 'lightgoldenrodyellow'
     axtstep = plt.axes([0.15, 0.15, 0.75, 0.03], facecolor=axcolor)
