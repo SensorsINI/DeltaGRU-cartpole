@@ -243,27 +243,27 @@ if __name__ == '__main__':
     # Draw Plots, from top position, angle, motor
     fig, axs = plt.subplots(4, 1,figsize=(14, 10), sharex=True)
     plt.subplots_adjust(left=0.15, right=0.9, bottom=0.3, top=0.9)
-    # cart position
-    plot1_actual, =     axs[0].plot(ts_sliderplot, position_actual_sliderplot, 'k', lw=3, label='Ground Truth')
-    plot1_context, =    axs[0].plot(ts_context, position_context, 'g--', lw=6, label='Context')
-    plot1_pred, =       axs[0].plot(ts_pred, position_pred, 'r-', lw=4, label='Prediction')
     # pole angle
-    plot2_actual, =     axs[1].plot(ts_sliderplot, angle_actual, 'k', lw=3, label='Ground Truth')
-    plot2_context, =    axs[1].plot(ts_context, angle_context, 'g--', lw=6, label='Context')
-    plot2_pred, =       axs[1].plot(ts_pred, angle_pred, 'r-', lw=4, label='Prediction')
+    plot0_actual, =     axs[0].plot(ts_sliderplot, angle_actual, 'k', lw=3, label='Ground Truth')
+    plot0_context, =    axs[0].plot(ts_context, angle_context, 'g--', lw=6, label='Context')
+    plot0_pred, =       axs[0].plot(ts_pred, angle_pred, 'r-', lw=4, label='Prediction')
+    # cart position
+    plot1_actual, =     axs[1].plot(ts_sliderplot, position_actual_sliderplot, 'k', lw=3, label='Ground Truth')
+    plot1_context, =    axs[1].plot(ts_context, position_context, 'g--', lw=6, label='Context')
+    plot1_pred, =       axs[1].plot(ts_pred, position_pred, 'r-', lw=4, label='Prediction')
     # motor
-    plot3_actual, =     axs[2].plot(ts_sliderplot, motor_actual, 'k', lw=1, label='Motor')
+    plot2_actual, =     axs[2].plot(ts_sliderplot, motor_actual, 'k', lw=1, label='Motor')
     # position target (from  user or dance program)
-    plot4_actual, =     axs[3].plot(ts_sliderplot, positionTarget, 'k', lw=1, label='Motor')
+    plot3_actual, =     axs[3].plot(ts_sliderplot, positionTarget, 'k', lw=1, label='Motor')
 
-    axs[0].set_ylabel("Position (norm)", fontsize=14)
-    # axs[0].set_ylim((-2,2))
+    axs[0].set_ylabel("Ang. Error (rad)", fontsize=14)
+    # axs[0].set_ylim((-0.1, 0.1)) # 0.1 is 5.7 deg
     axs[0].legend(fontsize=12)
-    # axs[0].margins(x=0)
 
-    axs[1].set_ylabel("Ang. Error (rad)", fontsize=14)
-    # axs[1].set_ylim((-0.1, 0.1)) # 0.1 is 5.7 deg
+    axs[1].set_ylabel("Position (norm)", fontsize=14)
+    # axs[1].set_ylim((-2,2))
     axs[1].legend(fontsize=12)
+    # axs[1].margins(x=0)
 
     axs[2].set_ylabel("motor (PWM)", fontsize=14)
     axs[2].legend(fontsize=12)
@@ -274,14 +274,10 @@ if __name__ == '__main__':
     axcolor = 'lightgoldenrodyellow'
     axtstep = plt.axes([0.15, 0.15, 0.75, 0.03], facecolor=axcolor)
 
-    for ax in axs:
-        ax.relim()
-        ax.autoscale_view()
-
     # Sliders
     a0 = 5
     f0 = 3
-    delta_step = 1.0
+    delta_step = .2
     ststep = Slider(axtstep, 'Timestep', cw_plen, num_test_tstep - pw_len - pw_off - plot_len, valinit=f0,
                     valstep=delta_step)
 
@@ -304,6 +300,13 @@ if __name__ == '__main__':
         motor_actual = test_actual[ts_sliderplot, actual_dict['actualMotorCmd']].squeeze()
         positionTarget = test_actual[ts_sliderplot, actual_dict['positionTarget']].squeeze()
 
+        plot0_actual.set_xdata(ts_sliderplot)
+        plot0_context.set_xdata(ts_context)
+        plot0_pred.set_xdata(ts_pred)
+        plot0_actual.set_ydata(angle_actual)
+        plot0_context.set_ydata(angle_context)
+        plot0_pred.set_ydata(angle_pred)
+
         plot1_actual.set_xdata(ts_sliderplot)
         plot1_context.set_xdata(ts_context)
         plot1_pred.set_xdata(ts_pred)
@@ -312,17 +315,10 @@ if __name__ == '__main__':
         plot1_pred.set_ydata(position_pred)
 
         plot2_actual.set_xdata(ts_sliderplot)
-        plot2_context.set_xdata(ts_context)
-        plot2_pred.set_xdata(ts_pred)
-        plot2_actual.set_ydata(angle_actual)
-        plot2_context.set_ydata(angle_context)
-        plot2_pred.set_ydata(angle_pred)
+        plot2_actual.set_ydata(motor_actual)
 
         plot3_actual.set_xdata(ts_sliderplot)
-        plot3_actual.set_ydata(motor_actual)
-
-        plot4_actual.set_xdata(ts_sliderplot)
-        plot4_actual.set_ydata(positionTarget)
+        plot3_actual.set_ydata(positionTarget)
 
         # https: // stackoverflow.com / questions / 10984085 / automatically - rescale - ylim - and -xlim - in -matplotlib
         for ax in axs:

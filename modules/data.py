@@ -157,12 +157,25 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med
     # # compute temporal derivatives from state data
     # averageDeltaTMs = deltaTimeMs.mean()  # TODO this is approximate derivative since sample rate varied a bit around 5ms
     # TODO consider using a better controlled derivative that enforces e.g. total variation constraint
-    actualMotorCmd = df.actualMotorCmd.to_numpy()  # zero-centered motor speed command
 
     # Derive Other Data
     sinAngle, dSinAngle, ddSinAngle = filterAndGradients(sinAngle, med_filt, cutoff_hz)
     cosAngle,dCosAngle, ddCosAngle=filterAndGradients(cosAngle, med_filt, cutoff_hz)
     position,dPosition, ddPosition=filterAndGradients(position, med_filt, cutoff_hz)
+
+    # Actual Data for Plotting
+    raw_actual = []
+    raw_actual.append(angle)
+    raw_actual.append(position)
+    actualMotorCmd = df.actualMotorCmd.to_numpy()  # zero-centered motor speed command
+    actualMotorCmd = filterData(actualMotorCmd, med_filt, cutoff_hz) # filter same way to create same delay
+    raw_actual.append(actualMotorCmd)
+    positionTarget =df.positionTarget.to_numpy() / float(POSITION_LIMIT) # user target for cart on table
+    positionTarget = filterData(positionTarget, med_filt, cutoff_hz)
+    raw_actual.append(positionTarget)
+    actual = np.vstack(raw_actual).transpose()  # raw_actual data indexed by [sample, sensor]
+    # add to dict here to allow plotting more easily, don't forget other _dict above
+    actual_dict = {'angle': 0, 'position': 1, 'actualMotorCmd': 2, 'positionTarget': 3}
 
     # Features (Train Data)
     raw_features = []
@@ -176,6 +189,7 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med
     raw_features.append(position)
     raw_features.append(dPosition)
     raw_features.append(actualMotorCmd)
+    raw_features.append(positionTarget)
     # raw_features.append(ddPosition)
     # raw_features.append(ddSinAngle)
     # raw_features.append(ddCosAngle)
@@ -200,17 +214,6 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med
     raw_targets = np.vstack(raw_targets).transpose()  # raw_targets indexed by [sample, sensor]
     # add to dict here to allow plotting more easily, don't forget other _dict below
     targets_dict={ 'sinAngle':0,'cosAngle':1,'dSinAngle':2,'dCosAngle':3,'position':4,'dPosition':5,'unused1':6,'unused12':7,'unused3':8}
-
-    # Actual Data for Plotting
-    raw_actual = []
-    raw_actual.append(angle)
-    raw_actual.append(position)
-    raw_actual.append(actualMotorCmd)
-    positionTarget =df.positionTarget.to_numpy() / float(POSITION_LIMIT) # user target for cart on table
-    raw_actual.append(positionTarget)
-    actual = np.vstack(raw_actual).transpose()  # raw_actual data indexed by [sample, sensor]
-    # add to dict here to allow plotting more easily, don't forget other _dict above
-    actual_dict = {'angle': 0, 'position': 1, 'actualMotorCmd': 2, 'positionTarget': 3}
 
     # compute normalization of data now
     mean_features, std_features = computeNormalization(raw_features)

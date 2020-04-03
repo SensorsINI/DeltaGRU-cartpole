@@ -24,7 +24,7 @@ def args():
     parser.add_argument('--stride',             default=1, type=int, help='Stride for time series data slice window')
     parser.add_argument('--seq_len',            default=20, type=int,  help='Sequence Length for BPTT training; samples are drawn with this length randomly throughout training set')
     parser.add_argument('--batch_size',         default=32, type=int, help='Batch size. How many samples to run forward in parallel before each weight update.')
-    parser.add_argument('--num_epochs',         default=10, type=int, help='Number of epochs to train for.')
+    parser.add_argument('--num_epochs',         default=30, type=int, help='Number of epochs to train for.')
     parser.add_argument('--lr',                 default=1e-4, type=float, help='Learning rate')  # 5e-4
     #architecure
     parser.add_argument('--rnn_type',           default='GRU', help='RNN Type')
