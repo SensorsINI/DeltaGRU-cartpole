@@ -17,14 +17,14 @@ def args():
     parser.add_argument('--val_file',           default=VAL_FILE_DEFAULT, type=str, help='Validation dataset file')
     parser.add_argument('--test_file',          default=TEST_FILE_DEFAULT, type=str, help='Testing dataset file')
     parser.add_argument('--med_filt',           default=5, type=int, help='median filter window length for all data, to remove outliers. Set to 0 to disable')
-    parser.add_argument('--cutoff_hz',          default=20, type=int, help='lowpass filter for sensor inputs, set to 0 to disable')
+    parser.add_argument('--cutoff_hz',          default=30, type=int, help='lowpass filter for sensor inputs, set to 0 to disable')
     #training
     parser.add_argument('--mode',               default=1, type=int,  help='Mode 0 - Pretrain on GRU; Mode 1 - Retrain on GRU; Mode 2 - Retrain on DeltaGRU')
     parser.add_argument('--seed',               default=1, type=int, help='Initialize the random seed of the run (for reproducibility).')
     parser.add_argument('--stride',             default=1, type=int, help='Stride for time series data slice window')
-    parser.add_argument('--seq_len',            default=40, type=int,  help='Sequence Length for BPTT training; samples are drawn with this length randomly throughout training set')
+    parser.add_argument('--seq_len',            default=60, type=int,  help='Sequence Length for BPTT training; samples are drawn with this length randomly throughout training set')
     parser.add_argument('--batch_size',         default=32, type=int, help='Batch size. How many samples to run forward in parallel before each weight update.')
-    parser.add_argument('--num_epochs',         default=30, type=int, help='Number of epochs to train for.')
+    parser.add_argument('--num_epochs',         default=10, type=int, help='Number of epochs to train for.')
     parser.add_argument('--lr',                 default=1e-4, type=float, help='Learning rate')  # 5e-4
     #architecure
     parser.add_argument('--rnn_type',           default='GRU', help='RNN Type')

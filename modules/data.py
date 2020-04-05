@@ -190,9 +190,9 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med
     raw_features.append(dPosition)
     raw_features.append(actualMotorCmd)
     # raw_features.append(positionTarget)
-    # raw_features.append(ddPosition)
-    # raw_features.append(ddSinAngle)
-    # raw_features.append(ddCosAngle)
+    raw_features.append(ddPosition)
+    raw_features.append(ddSinAngle)
+    raw_features.append(ddCosAngle)
 
     raw_features = np.vstack(raw_features).transpose()  # raw_features indexed by [sample, input sensor/control]
     # add to dict here to allow plotting more easily, don't forget other _dict below
@@ -208,9 +208,9 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med
     # raw_targets.append(dAngle)
     raw_targets.append(position)
     raw_targets.append(dPosition)
-    # raw_targets.append(ddSinAngle)
-    # raw_targets.append(ddCosAngle)
-    # raw_targets.append(ddPosition)
+    raw_targets.append(ddPosition)
+    raw_targets.append(ddSinAngle)
+    raw_targets.append(ddCosAngle)
     raw_targets = np.vstack(raw_targets).transpose()  # raw_targets indexed by [sample, sensor]
     # add to dict here to allow plotting more easily, don't forget other _dict below
     targets_dict={ 'sinAngle':0,'cosAngle':1,'dSinAngle':2,'dCosAngle':3,'position':4,'dPosition':5,'unused1':6,'unused12':7,'unused3':8}
