@@ -4,17 +4,17 @@ DeltaGRU training code of the ICRA 2020 paper on controlling AMPRO with EdgeDRNN
 # Create Anaconda Environment
 Create an environment using the following command:
 ```
-conda create -n pt-ampro python=3.7 matplotlib pandas tqdm pytorch torchvision cudatoolkit=10.1 scipy -c pytorch
+conda create -n pt-cartpole python=3.7 matplotlib pandas tqdm pytorch torchvision cudatoolkit=10.1 scipy -c pytorch
 ```
 
 # Run
 Activate the environment before running the script.
 ```
-conda activate pt-ampro
+conda activate pt-cartpole
 ```
-Run the script.
+Run the training script.
 ```
-python main.py
+python train.py
 ```
 
 # Plot
