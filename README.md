@@ -1,5 +1,5 @@
-# DeltaGRU for AMPRO
-DeltaGRU training code of the ICRA 2020 paper on controlling AMPRO with EdgeDRNN
+# DeltaGRU for cart-pole robot
+DeltaGRU training code for the cart-pole inverted pendulum robot, based on the the ICRA 2020 paper on controlling AMPRO with EdgeDRNN
 
 # Create Anaconda Environment
 Create an environment using the following command:
