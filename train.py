@@ -18,7 +18,15 @@ from modules.deltarnn import get_temporal_sparsity
 from modules import parseArgs
 import warnings
 
-if __name__ == '__main__':
+
+from memory_profiler import profile
+import timeit
+
+#@profile(precision=4)
+def train_network():
+
+    start = timeit.default_timer()
+
     args = parseArgs.args()
 
     # Make folders
@@ -127,86 +135,88 @@ if __name__ == '__main__':
     dev_targets = normalize(dev_targets, mean_train_targets, std_train_targets)
     test_features = normalize(test_features, mean_train_features, std_train_features)
     test_targets = normalize(test_targets, mean_train_targets, std_train_targets)
+    
 
     print("train_features: ", train_features.shape)
     print("mean_train_features: ", mean_train_features)
     print("std_train_features: ", std_train_features)
 
     # Convert Numpy Arrays to PyTorch Tensors
-    train_features = torch.from_numpy(train_features).float()
-    train_targets = torch.from_numpy(train_targets).float()
-    dev_features = torch.from_numpy(dev_features).float()
-    dev_targets = torch.from_numpy(dev_targets).float()
-    test_features = torch.from_numpy(test_features).float()
-    test_targets = torch.from_numpy(test_targets).float()
+    # train_features = torch.from_numpy(train_features).float()
+    # train_targets = torch.from_numpy(train_targets).float()
+    # dev_features = torch.from_numpy(dev_features).float()
+    # dev_targets = torch.from_numpy(dev_targets).float()
+    # test_features = torch.from_numpy(test_features).float()
+    # test_targets = torch.from_numpy(test_targets).float()
 
     # Create PyTorch Dataset
-    train_set = Dataset(train_features, train_targets, mode)
-    dev_set = Dataset(dev_features, dev_targets, mode)
-    test_set = Dataset(test_features, test_targets, mode)
+    train_set = Dataset(train_features, train_targets, args)
+    dev_set = Dataset(dev_features, dev_targets, args)
+    test_set = Dataset(test_features, test_targets, args)
 
     # Create PyTorch dataloaders for train and dev set
-    train_generator = data.DataLoader(dataset=train_set, batch_size=batch_size, shuffle=True)
-    dev_generator = data.DataLoader(dataset=dev_set, batch_size=512, shuffle=False)
-    test_generator = data.DataLoader(dataset=test_set, batch_size=512, shuffle=False)
+    train_generator = data.DataLoader(dataset=train_set, batch_size=batch_size, shuffle=True, num_workers = args.num_workers)
+    dev_generator = data.DataLoader(dataset=dev_set, batch_size=512, shuffle=False, num_workers = args.num_workers)
+    test_generator = data.DataLoader(dataset=test_set, batch_size=512, shuffle=False, num_workers = args.num_workers)
 
     # Get number of classes
-    num_classes = train_targets.size(-1)
+    X,y  = train_set.__getitem__(1)
+    num_classes = y.size(-1)
     print("\n")
 
-    print('###################################################################################\n\r'
-          '# Dataset (Normalized)\n\r'
-          '###################################################################################')
-    print("# Train Data  | Size:   %s                            \n"
-          "#             | Min:    %f                            \n"
-          "#             | Mean:   %f                            \n"
-          "#             | Median: %f                            \n"
-          "#             | Max:    %f                            \n"
-          "#             | Std:    %f                            \n"
-          "#-----------------------------------------------------\n"
-          "# Dev   Data  | Size:   %s                            \n"
-          "#             | Min:    %f                            \n"
-          "#             | Mean:   %f                            \n"
-          "#             | Median: %f                            \n"
-          "#             | Max:    %f                            \n"
-          "#             | Std:    %f                            \n"
-          "#-----------------------------------------------------\n"
-          "# Test  Data  | Size:   %s                            \n"
-          "#             | Min:    %f                            \n"
-          "#             | Mean:   %f                            \n"
-          "#             | Median: %f                            \n"
-          "#             | Max:    %f                            \n"
-          "#             | Std:    %f                            \n"
-          "#-----------------------------------------------------\n"
-          "# Train Label | Size:   %s                            \n"
-          "#             | Min:    %f                            \n"
-          "#             | Mean:   %f                            \n"
-          "#             | Median: %f                            \n"
-          "#             | Max:    %f                            \n"
-          "#             | Std:    %f                            \n"
-          "#-----------------------------------------------------\n"
-          "# Dev   Label | Size:   %s                            \n"
-          "#             | Min:    %f                            \n"
-          "#             | Mean:   %f                            \n"
-          "#             | Median: %f                            \n"
-          "#             | Max:    %f                            \n"
-          "#             | Std:    %f                            \n"
-          "#-----------------------------------------------------\n"
-          "# Test  Label | Size:   %s                            \n"
-          "#             | Min:    %f                            \n"
-          "#             | Mean:   %f                            \n"
-          "#             | Median: %f                            \n"
-          "#             | Max:    %f                            \n"
-          "#             | Std:    %f                            \n"
-          "#-----------------------------------------------------\n"
-          % (str(list(train_features.size())), train_features.min(), train_features.mean(), train_features.median(), train_features.max(), train_features.std(),
-             str(list(dev_features.size())), dev_features.min(), dev_features.mean(), dev_features.median(), dev_features.max(), dev_features.std(),
-             str(list(test_features.size())), test_features.min(), test_features.mean(), test_features.median(), test_features.max(), test_features.std(),
-             str(list(train_targets.size())), train_targets.min(), train_targets.mean(), train_targets.median(), train_targets.max(), train_targets.std(),
-             str(list(dev_targets.size())), dev_targets.min(), dev_targets.mean(), dev_targets.median(), dev_targets.max(), dev_targets.std(),
-             str(list(test_targets.size())), test_targets.min(), test_targets.mean(), test_targets.median(), test_targets.max(), test_targets.std()
-            )
-          )
+    # print('###################################################################################\n\r'
+    #       '# Dataset (Normalized)\n\r'
+    #       '###################################################################################')
+    # print("# Train Data  | Size:   %s                            \n"
+    #       "#             | Min:    %f                            \n"
+    #       "#             | Mean:   %f                            \n"
+    #       "#             | Median: %f                            \n"
+    #       "#             | Max:    %f                            \n"
+    #       "#             | Std:    %f                            \n"
+    #       "#-----------------------------------------------------\n"
+    #       "# Dev   Data  | Size:   %s                            \n"
+    #       "#             | Min:    %f                            \n"
+    #       "#             | Mean:   %f                            \n"
+    #       "#             | Median: %f                            \n"
+    #       "#             | Max:    %f                            \n"
+    #       "#             | Std:    %f                            \n"
+    #       "#-----------------------------------------------------\n"
+    #       "# Test  Data  | Size:   %s                            \n"
+    #       "#             | Min:    %f                            \n"
+    #       "#             | Mean:   %f                            \n"
+    #       "#             | Median: %f                            \n"
+    #       "#             | Max:    %f                            \n"
+    #       "#             | Std:    %f                            \n"
+    #       "#-----------------------------------------------------\n"
+    #       "# Train Label | Size:   %s                            \n"
+    #       "#             | Min:    %f                            \n"
+    #       "#             | Mean:   %f                            \n"
+    #       "#             | Median: %f                            \n"
+    #       "#             | Max:    %f                            \n"
+    #       "#             | Std:    %f                            \n"
+    #       "#-----------------------------------------------------\n"
+    #       "# Dev   Label | Size:   %s                            \n"
+    #       "#             | Min:    %f                            \n"
+    #       "#             | Mean:   %f                            \n"
+    #       "#             | Median: %f                            \n"
+    #       "#             | Max:    %f                            \n"
+    #       "#             | Std:    %f                            \n"
+    #       "#-----------------------------------------------------\n"
+    #       "# Test  Label | Size:   %s                            \n"
+    #       "#             | Min:    %f                            \n"
+    #       "#             | Mean:   %f                            \n"
+    #       "#             | Median: %f                            \n"
+    #       "#             | Max:    %f                            \n"
+    #       "#             | Std:    %f                            \n"
+    #       "#-----------------------------------------------------\n"
+    #       % (str(list(train_features.size())), train_features.min(), train_features.mean(), train_features.median(), train_features.max(), train_features.std(),
+    #          str(list(dev_features.size())), dev_features.min(), dev_features.mean(), dev_features.median(), dev_features.max(), dev_features.std(),
+    #          str(list(test_features.size())), test_features.min(), test_features.mean(), test_features.median(), test_features.max(), test_features.std(),
+    #          str(list(train_targets.size())), train_targets.min(), train_targets.mean(), train_targets.median(), train_targets.max(), train_targets.std(),
+    #          str(list(dev_targets.size())), dev_targets.min(), dev_targets.mean(), dev_targets.median(), dev_targets.max(), dev_targets.std(),
+    #          str(list(test_targets.size())), test_targets.min(), test_targets.mean(), test_targets.median(), test_targets.max(), test_targets.std()
+    #         )
+    #       )
 
     print("\n\r")
 
@@ -220,7 +230,7 @@ if __name__ == '__main__':
           '# Network\n\r'
           '###################################################################################')
     # Network Dimension
-    rnn_inp_size = train_features.size(-1)
+    rnn_inp_size = X.size(-1)
     print("rnn_inp_size             = ", rnn_inp_size)
     print("rnn_hid_size             = ", rnn_hid_size)
     print("num_rnn_layers           = ", num_rnn_layers)
@@ -247,7 +257,10 @@ if __name__ == '__main__':
 
     if mode != 0:
         print("Loading pretrained model: ", pretrain_model_path)
-        pre_trained_model = torch.load(pretrain_model_path)
+        if args.cuda == 1:
+            pre_trained_model = torch.load(savepath)
+        else:
+            pre_trained_model = torch.load(savepath, map_location=torch.device('cpu'))
         pre_trained_model = list(pre_trained_model.items())
         new_state_dict = collections.OrderedDict()
         count = 0
@@ -332,6 +345,10 @@ if __name__ == '__main__':
 
         for batch, labels in tqdm(train_generator):  # Iterate through batches
             # Move data to GPU
+            
+            np_batch = batch.numpy()
+            np_label = labels.numpy()
+            
             if args.cuda:
                 batch = batch.float().cuda().transpose(0, 1)
                 labels = labels.float().cuda()
@@ -525,3 +542,11 @@ if __name__ == '__main__':
 
     print("Training Completed...                                               ")
     print(" ")
+
+    stop = timeit.default_timer() 
+    total_time = stop-start
+    return total_time
+
+if __name__ == '__main__':
+  total_time = train_network()
+  print('Total time of training the network: '+str(total_time))

@@ -6,6 +6,8 @@ import numpy as np
 import math
 from scipy.signal import butter, lfilter, lfilter_zi, medfilt
 import warnings
+import os
+
 
 # TODO check value, might not be 4096 full scale. It does rotate all the way, is 0 at left, 2000 to right, about 3210 vertical up, and -947 hanging vertically
 RAD_PER_ANGLE_ADC = 2 * math.pi / 4096  # a complete rotation of the potentiometer is mapped to this many ADC counts
@@ -40,23 +42,67 @@ def norm(x):
 
 
 class Dataset(data.Dataset):
-    def __init__(self, data, labels, retrain):
+    def __init__(self, data, labels, args):
         'Initialization'
         self.data = data
         self.labels = labels
-        self.retrain = retrain
+        self.retrain = args.mode
+        self.args  = args
 
     def __len__(self):
+        
+        # Hyperparameters
+        cw_plen = self.args.cw_plen  # Length of history in timesteps used to train the network
+        cw_flen = self.args.cw_flen  # Length of future in timesteps to predict
+        pw_len = self.args.pw_len  # Offset of future in timesteps to predict
+        pw_off = self.args.pw_off  # Length of future in timesteps to predict
+        seq_len = self.args.seq_len  # Sequence length
+        if seq_len<=cw_plen: warnings.warn('sequence length '+str(seq_len)+' is less than context window length '+str(cw_plen))
+
         'Total number of samples'
-        return self.data.size(0)  # The first dimention of the data tensor
+        return self.data.shape[0]- max(cw_flen, pw_len + pw_off) - seq_len - cw_plen
 
     def __getitem__(self, idx):
-        'Get one sample from the dataset using an index'
-        if self.retrain == 3:
-            X = self.data[idx, :]
-        else:
-            X = self.data[idx, :, :]
-        y = self.labels[idx, :]
+        
+        # Hyperparameters
+        cw_plen = self.args.cw_plen  # Length of history in timesteps used to train the network
+        cw_flen = self.args.cw_flen  # Length of future in timesteps to predict
+        pw_len = self.args.pw_len  # Offset of future in timesteps to predict
+        pw_off = self.args.pw_off  # Length of future in timesteps to predict
+        seq_len = self.args.seq_len  # Sequence length
+        if seq_len<=cw_plen: warnings.warn('sequence length '+str(seq_len)+' is less than context window length '+str(cw_plen))
+
+        raw_features = self.data
+        raw_targets = self.labels
+        
+        features = []
+        targets = []
+        i = idx+cw_plen
+        # Iterate from the current timestep to the last timestep that gives the last prediction window
+        raw_feature_seq = []
+        raw_target_seq = []
+        for t in range(0, seq_len):
+            raw_feature_seq.append(raw_features[i + t - cw_plen:i + t + cw_flen + 1, :].ravel())
+            # ravel() makes 1d array for sensor values and prediction window length
+            # order is row major, with last index changing fastest
+            # since last index is sensor, the order is [sensor1t0, sensor2t0, ... sensorNt0, sensor0t1, sensor2t1 ....]
+            raw_target_seq.append(raw_targets[i + t + pw_off:i + t + pw_off + pw_len, :].ravel())
+        features = np.stack(raw_feature_seq, axis=0)
+        targets = np.stack(raw_target_seq, axis=0)
+        
+        
+        X = torch.from_numpy(features).float()
+        y = torch.from_numpy(targets).float()
+        
+
+        
+        # Old version of __getitem___
+        # 'Get one sample from the dataset using an index'
+        # if self.retrain == 3:
+        #     X = self.data[idx, :]
+        # else:
+        #     X = self.data[idx, :, :]
+        # y = self.labels[idx, :]
 
         return X, y
 
@@ -67,6 +113,8 @@ def normalize(dat, mean, std):
     std = np.tile(std, rep)
     dat = (dat - mean) / std
     return dat
+
+
 
 
 def unnormalize(dat, mean, std):
@@ -100,7 +148,7 @@ def computeNormalization(dat: numpy.array):
     return m, s
 
 
-def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med_filt=MEDFILT_WINDOW, cutoff_hz=CUTOFF_HZ):
+def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med_filt=MEDFILT_WINDOW, cutoff_hz=CUTOFF_HZ, test_plot = False):
     '''
     Loads dataset from CSV file
     Args:
@@ -112,6 +160,7 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med
         seq_len: number of samples in time input to RNN
         stride: step over data in samples between samples
         medfilt: median filter window, 0 to disable
+        test_plot: test_plot.py file requires other way of loading data
 
     Returns:
         Unnormalized numpy arrays
@@ -220,27 +269,48 @@ def load_data(filepath, cw_plen, cw_flen, pw_len, pw_off, seq_len, stride=1, med
     mean_targets, std_targets = computeNormalization(raw_targets)
 
     # Split train data
-    numSamples = raw_features.shape[0]
-
-    features = []
-    targets = []
-    # Iterate from the current timestep to the last timestep that gives the last prediction window
-    for i in range(cw_plen, numSamples - max(cw_flen, pw_len + pw_off) - seq_len):
-        if i % stride is not 0:
-            continue
-        raw_feature_seq = []
-        raw_target_seq = []
-        for t in range(0, seq_len):
-            raw_feature_seq.append(raw_features[i + t - cw_plen:i + t + cw_flen + 1, :].ravel())
+    # numSamples = raw_features.shape[0]
+    
+    if test_plot == True:
+        # Split train data
+        numSamples = raw_features.shape[0]
+    
+        features = []
+        targets = []
+        # Iterate from the current timestep to the last timestep that gives the last prediction window
+        for i in range(cw_plen, numSamples - max(cw_flen, pw_len + pw_off) - seq_len):
+            if i % stride is not 0:
+                continue
             # ravel() makes 1d array for sensor values and prediction window length
             # order is row major, with last index changing fastest
             # since last index is sensor, the order is [sensor1t0, sensor2t0, ... sensorNt0, sensor0t1, sensor2t1 ....]
-            raw_target_seq.append(raw_targets[i + t + pw_off:i + t + pw_off + pw_len, :].ravel())
-        raw_feature_seq = np.stack(raw_feature_seq, axis=0)
-        raw_target_seq = np.stack(raw_target_seq, axis=0)
-        features.append(raw_feature_seq)
-        targets.append(raw_target_seq)
-    features = np.stack(features, axis=0)  # indexed by [sample, sequence, # sensor inputs * cw_len]
-    targets = np.stack(targets, axis=0)  # [sample, sequence, # output sensor values * pw_len]
+            features.append(raw_features[i - cw_plen:i + cw_flen + 1, :].ravel())
+            targets.append(raw_targets[i + pw_off:i + pw_off + pw_len, :].ravel())
+        features = np.stack(features, axis=0)  # indexed by [sample, sequence, # sensor inputs * cw_len]
+        targets = np.stack(targets, axis=0)  # [sample, sequence, # output sensor values * pw_len]
+    else:
+        features = raw_features
+        targets = raw_targets
+
+    # features = []
+    # targets = []
+    # # Iterate from the current timestep to the last timestep that gives the last prediction window
+    # for i in range(cw_plen, numSamples - max(cw_flen, pw_len + pw_off) - seq_len):
+    #     if i % stride is not 0:
+    #         continue
+    #     raw_feature_seq = []
+    #     raw_target_seq = []
+    #     for t in range(0, seq_len):
+    #         raw_feature_seq.append(raw_features[i + t - cw_plen:i + t + cw_flen + 1, :].ravel())
+    #         # ravel() makes 1d array for sensor values and prediction window length
+    #         # order is row major, with last index changing fastest
+    #         # since last index is sensor, the order is [sensor1t0, sensor2t0, ... sensorNt0, sensor0t1, sensor2t1 ....]
+    #         raw_target_seq.append(raw_targets[i + t + pw_off:i + t + pw_off + pw_len, :].ravel())
+    #     raw_feature_seq = np.stack(raw_feature_seq, axis=0)
+    #     raw_target_seq = np.stack(raw_target_seq, axis=0)
+    #     features.append(raw_feature_seq)
+    #     targets.append(raw_target_seq)
+    # features = np.stack(features, axis=0)  # indexed by [sample, sequence, # sensor inputs * cw_len]
+    # targets = np.stack(targets, axis=0)  # [sample, sequence, # output sensor values * pw_len]
 
     return features, features_dict, targets, targets_dict, actual, actual_dict, mean_features, std_features, mean_targets, std_targets

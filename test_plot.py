@@ -65,8 +65,8 @@ if __name__ == '__main__':
     ########################################################
     # Create Dataset
     ########################################################
-    test_features, test_dict, test_targets,target_dict, test_actual, actual_dict, _, _, _,_ = load_data(test_file, cw_plen, cw_flen, pw_len, pw_off, seq_len, args.stride,args.med_filt, args.cutoff_hz)
-    test_features = test_features[:, 0, :]  # Get a continuous time series
+    test_features, test_dict, test_targets,target_dict, test_actual, actual_dict, _, _, _,_ = load_data(test_file, cw_plen, cw_flen, pw_len, pw_off, seq_len, args.stride,args.med_filt, args.cutoff_hz, test_plot = True)
+    #test_features = test_features[:, 0, :]  # Get a continuous time series
     # test_features: input sensor and control signals
     # test_targets: what we want to predict (the sensor data into the future)
     # both are torch tensors
@@ -106,11 +106,16 @@ if __name__ == '__main__':
                        quantize_act=1,
                        cuda=args.cuda)
 
+
     ########################################################
     # Initialize Parameters
     ########################################################
     print("Loading Model: ", savepath)
-    pre_trained_model = torch.load(savepath)
+    if args.cuda == 1:
+        pre_trained_model = torch.load(savepath)
+    else:
+        pre_trained_model = torch.load(savepath, map_location=torch.device('cpu'))
+    
 
     pre_trained_model = list(pre_trained_model.items())
     new_state_dict = collections.OrderedDict()
@@ -181,7 +186,7 @@ if __name__ == '__main__':
     cos_pred = np.squeeze(y_pred[t_start:t_start + num_test_tstep, 0, target_dict['cosAngle']])
     angle_pred = np.arctan2(sin_pred, cos_pred)  # compute angle from sin and cos
     position_pred = np.squeeze(y_pred[t_start:t_start + num_test_tstep, 0, target_dict['position']])  # prediction of normalized position
-
+#%%
     # Plot angle error
     fig1, axs = plt.subplots(4, 1, figsize=(14, 8), sharex=True) # share x axis so zoom zooms all plots
     # axs[0].set_title('(a)', fontsize=24)
@@ -212,6 +217,9 @@ if __name__ == '__main__':
     axs[3].set_xlabel('Time (samples, 200/s)', fontsize=18)
     axs[3].plot(ts_actual, positionTarget, 'k')
     axs[3].tick_params(axis='both', which='major', labelsize=16)
+
+
+#%%
 
     ########################################################################
     # Slider

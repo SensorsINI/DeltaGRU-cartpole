@@ -11,7 +11,7 @@ def args():
     parser = argparse.ArgumentParser(description='Train a GRU network.')
 
     # which hardware to usee
-    parser.add_argument('--cuda', default=1, type=int, help='1 to use cuda, 0 for CPU (better debug output)')  # 5e-4
+    parser.add_argument('--cuda', default=0, type=int, help='1 to use cuda, 0 for CPU (better debug output)')  # 5e-4
     # data
     parser.add_argument('--train_file',         default=TRAIN_FILE_DEFAULT, type=str, help='Training dataset file')
     parser.add_argument('--val_file',           default=VAL_FILE_DEFAULT, type=str, help='Validation dataset file')
@@ -19,7 +19,8 @@ def args():
     parser.add_argument('--med_filt',           default=5, type=int, help='median filter window length for all data, to remove outliers. Set to 0 to disable')
     parser.add_argument('--cutoff_hz',          default=30, type=int, help='lowpass filter for sensor inputs, set to 0 to disable')
     #training
-    parser.add_argument('--mode',               default=1, type=int,  help='Mode 0 - Pretrain on GRU; Mode 1 - Retrain on GRU; Mode 2 - Retrain on DeltaGRU')
+    parser.add_argument('--num_workers',        default=0, type=int, help='Number of threads preparing data. It seems for num_workers>0 and cuda=0 program crashes. Otherwise the bigger number of workers on multicore CPU machine should lower the training time for each epoch')
+    parser.add_argument('--mode',               default=0, type=int,  help='Mode 0 - Pretrain on GRU; Mode 1 - Retrain on GRU; Mode 2 - Retrain on DeltaGRU')
     parser.add_argument('--seed',               default=1, type=int, help='Initialize the random seed of the run (for reproducibility).')
     parser.add_argument('--stride',             default=1, type=int, help='Stride for time series data slice window')
     parser.add_argument('--seq_len',            default=60, type=int,  help='Sequence Length for BPTT training; samples are drawn with this length randomly throughout training set')
