@@ -48,14 +48,14 @@ class Cart:
                   Q_max = 1,
                   slider_value = 0.0,
                   mode = 0,
-                  dt = 0.02,
+                  dt = 0.005,
                   save_history = True,
                   
                   # Variables used for physical simulation
                   m = 2.0, # mass of pend, kg
-                  M = 2.0, # mass of cart, kg
-                  Mfric = 1.0, # cart friction, N/m/s
-                  Jfric = 10.0, # friction coefficient on angular velocity, Nm/rad/s
+                  M = 20.0, # mass of cart, kg
+                  Mfric = 0.0,#1.0, # cart friction, N/m/s
+                  Jfric = 0.0,#10.0, # friction coefficient on angular velocity, Nm/rad/s
                   g = 9.8, # gravity, m/s^2
                   L = 10.0, # half length of pend, m
                   umax = 300.0, # max cart force, N
@@ -241,12 +241,12 @@ class Cart:
         # It is saved first internally to a dictionary in the Cart instance
         if self.save_history:
             # Saving simulation data
-            self.dict_history['Time'].append(around(self.time_total, 4))
+            self.dict_history['time'].append(around(self.time_total, 4))
             self.dict_history['deltaTimeMs'].append(around(self.dt*1000.0,3))
             self.dict_history['position'].append(around(self.CartPosition,3))
             self.dict_history['positionD'].append(around(self.CartPositionD,4))
             self.dict_history['positionDD'].append(around(self.CartPositionDD,4))
-            self.dict_history['angle'].append(around(self.angle,4))
+            self.dict_history['angleErr'].append(around(self.angle,4))
             self.dict_history['angleD'].append(around(self.angleD,4))
             self.dict_history['angleDD'].append(around(self.angleDD,4))
             self.dict_history['motor'].append(around(self.ueff,4))
@@ -282,7 +282,7 @@ class Cart:
         
         self.ueff = 0.0
         
-        self.dt = 0.02
+        self.dt = 0.005
         
         self.slider_value = 0.0
     
@@ -377,12 +377,12 @@ class Cart:
     
     # This method resets the dictionary keeping the history of simulation
     def reset_dict_history(self):
-        self.dict_history = {'Time':              [around(self.dt,3)],
+        self.dict_history = {'time':              [around(self.dt,3)],
                                 'deltaTimeMs':    [around(self.dt*1000.0,3)],
                                 'position':       [],
                                 'positionD':      [],
                                 'positionDD':     [],
-                                'angle':          [],
+                                'angleErr':          [],
                                 'angleD':         [],
                                 'angleDD':        [],
                                 'motor':          [],

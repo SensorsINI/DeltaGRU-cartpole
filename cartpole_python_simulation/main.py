@@ -79,7 +79,7 @@ class MainWindow(QMainWindow):
         
         ## Initialization of variables
         # Time in simulation
-        self.dt_fix = 0.01 # This is fixed timestep value
+        self.dt_fix = 0.005 # This is fixed timestep value
         self.dt = 0.0 # It is NOT the fixed timestep value. It is just a value for the first timestep
 
         # Stop threads if False
@@ -255,9 +255,9 @@ class MainWindow(QMainWindow):
             
 
             # Finish simulation if angle bigger than 90 deg.
-            if abs(self.MyCart.angle)>pi/2:
-                self.run_thread_calculations = 0
-                break
+            # if abs(self.MyCart.angle)>pi/2:
+            #     self.run_thread_calculations = 0
+            #     break
         
             # Ensure that the animation drawing function can access MyCart at this moment
             QApplication.processEvents()
