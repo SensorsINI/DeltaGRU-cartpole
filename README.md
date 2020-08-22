@@ -4,7 +4,7 @@ DeltaGRU training code for the cart-pole inverted pendulum robot, based on the t
 # Create Anaconda Environment
 Create an environment using the following command:
 ```
-conda create -n pt-cartpole python=3.8 matplotlib pyqt pandas tqdm scipy pytorch torchvision cudatoolkit=10.1 -c pytorch
+conda create -n pt-cartpole python=3.8 matplotlib pyqt pandas tqdm scipy ipython pytorch torchvision cudatoolkit=10.1 -c pytorch
 ```
 
 # Run
